@@ -16,7 +16,7 @@ fn main() {
 
                 let mut buf=[0;512];
                 stream.read(&mut buf).unwrap();
-                stream.write("+PONG\n\r".as_byte()).unwrap();
+                stream.write(b"+PONG\n\r").unwrap();
             }
             Err(e) => {
                 println!("error: {}", e);
