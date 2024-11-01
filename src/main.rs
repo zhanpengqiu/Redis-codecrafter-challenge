@@ -34,9 +34,9 @@ async fn handle_conn(stream: TcpStream) {
         
         let response = if let Some(v) = value {
             let (command, args) = extract_command(v).unwrap();
-            match command.as_str() {
-                "PING" => Value::SimpleString("PONG".to_string()),
-                "ECHO" => args.first().unwrap().clone(),
+            match command.to_lowercase().as_str() {
+                "ping" => Value::SimpleString("PONG".to_string()),
+                "echo" => args.first().unwrap().clone(),
                 c => {println!("{:?}",command);panic!("Cannot handle command {}", c)}
             }
         } else {
