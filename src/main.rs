@@ -1,33 +1,65 @@
 #![allow(unused_imports)]
-use std::{
-    io::{Read, Write},
-    net::{TcpListener,TcpStream},
-};
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-    let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    for stream in listener.incoming() {
+use resp::Value;
+use tokio::net::{TcpListener, TcpStream};
+use anyhow::Result;
+mod resp;
+#[tokio::main]
+async fn main() {
+    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
+    
+    loop {
+        let stream = listener.accept().await;
         match stream {
-            Ok(mut _stream) => {
-                std::thread::spawn(move || handle_client(_stream));
-            }
-            Err(e) => {
-                println!("error: {}", e);
-            }
+            Ok((stream, _)) => {
+                println!("accepted new connection");
+                tokio::spawn(async move {
+                    handle_conn(stream).await
+                    });
+                }
+                Err(e) => {
+                    println!("error: {}", e);
+                }
         }
     }
 }
 
-fn handle_client(mut stream: TcpStream) {
-    let mut buffer = [0; 1024];
-    loop{
-        let read_count=stream.read(&mut buffer).unwrap();
-        if read_count == 0 {
+// *2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
+
+async fn handle_conn(stream: TcpStream) {
+    let mut handler = resp::RespHandler::new(stream);
+    println!("Starting read loop");
+    loop {
+        let value = handler.read_value().await.unwrap();
+        println!("Got value {:?}", value);
+        
+        let response = if let Some(v) = value {
+            let (command, args) = extract_command(v).unwrap();
+            match command.as_str() {
+                "PING" => Value::SimpleString("PONG".to_string()),
+                "ECHO" => args.first().unwrap().clone(),
+                c => {println!("{:?}",command);panic!("Cannot handle command {}", c)}
+            }
+        } else {
             break;
-        }
-
-        stream.write(b"+PONG\r\n").unwrap();
+        };
+        println!("Sending value {:?}", response);
+        handler.write_value(response).await.unwrap();
     }
-
+}
+fn extract_command(value: Value) -> Result<(String, Vec<Value>)> {
+    match value {
+        Value::Array(a) => {
+            Ok((
+                unpack_bulk_str(a.first().unwrap().clone())?,
+                a.into_iter().skip(1).collect(),
+            ))
+        },
+        _ => Err(anyhow::anyhow!("Unexpected command format")),
+    }
+}
+fn unpack_bulk_str(value: Value) -> Result<String> {
+    match value {
+        Value::BulkString(s) => Ok(s),
+        _ => Err(anyhow::anyhow!("Expected command to be a bulk string"))
+    }
 }
