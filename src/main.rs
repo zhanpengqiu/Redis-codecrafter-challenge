@@ -1,10 +1,8 @@
 #![allow(unused_imports)]
-use resp::Value;
+mod resp;
+use resp::*;
 use tokio::net::{TcpListener, TcpStream};
 use anyhow::Result;
-
-mod resp;
-use redis_starter_rust::resp;
 
 #[tokio::main]
 async fn main() {
