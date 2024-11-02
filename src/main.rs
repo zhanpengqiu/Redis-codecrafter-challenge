@@ -4,7 +4,7 @@ use tokio::net::{TcpListener, TcpStream};
 use anyhow::Result;
 
 mod resp;
-use redis-starter-rust::resp;
+use redis_starter_rust::resp;
 
 #[tokio::main]
 async fn main() {
