@@ -18,6 +18,7 @@ async fn main() {
                 }
                 Err(e) => {
                     println!("error: {}", e);
+
                 }
         }
     }
