@@ -1,21 +1,26 @@
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 use bytes::BytesMut;
 use anyhow::Result;
-#[derive(Clone, Debug)]
+// 参数用于输入到database中
+#[derive(Clone, Debug,Eq, Hash, PartialEq)]
 pub enum Value {
     SimpleString(String),
-    BulkString(String),
+    Error(String),
+    BulkString(Option<String>),
+    Integer(i64),
     Array(Vec<Value>),
 }
 impl Value {
     pub fn serialize(self) -> String {
         match self {
             Value::SimpleString(s) => format!("+{}\r\n", s),
-            Value::BulkString(s) => format!("${}\r\n{}\r\n", s.chars().count(), s),
+            Value::BulkString(Some(s)) => format!("${}\r\n{}\r\n", s.chars().count(), s),
+            Value::BulkString(None) => format!("$-1\r\n",),
             _ => panic!("Unsupported value for serialize"),
         }
     }
 }
+
 pub struct RespHandler {
     stream: TcpStream,
     buffer: BytesMut,
@@ -79,7 +84,7 @@ fn parse_bulk_string(buffer: BytesMut) -> Result<(Value, usize)> {
     };
     let end_of_bulk_str = bytes_consumed + bulk_str_len as usize;
     let total_parsed = end_of_bulk_str + 2;
-    Ok((Value::BulkString(String::from_utf8(buffer[bytes_consumed..end_of_bulk_str].to_vec())?), total_parsed))
+    Ok((Value::BulkString(Some(String::from_utf8(buffer[bytes_consumed..end_of_bulk_str].to_vec())?)), total_parsed))
 }
 fn read_until_crlf(buffer: &[u8]) -> Option<(&[u8], usize)> {
     for i in 1..buffer.len() {
