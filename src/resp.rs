@@ -16,6 +16,7 @@ impl Value {
             Value::SimpleString(s) => format!("+{}\r\n", s),
             Value::BulkString(Some(s)) => format!("${}\r\n{}\r\n", s.chars().count(), s),
             Value::BulkString(None) => format!("$-1\r\n",),
+            Value::Integer(i) => format!(":{}\r\n", i),
             _ => panic!("Unsupported value for serialize"),
         }
     }

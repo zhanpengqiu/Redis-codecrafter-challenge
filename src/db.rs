@@ -2,15 +2,18 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use crate::resp::Value;
+use std::time::{Duration, SystemTime};
 
 pub struct RedisDb {
     data: HashMap<Value, Value>,
+    expirations: HashMap<Value, SystemTime>,
 }
 
 impl RedisDb {
     pub fn new() -> Self {
         RedisDb {
             data: HashMap::new(),
+            expirations: HashMap::new(),
         }
     }
 
@@ -62,21 +65,76 @@ impl RedisDb {
         }
     }
 
-    pub fn handle_command(&mut self, command: String, args: Vec<Value>) -> Value {
+    pub fn handle_command(&mut self, command: String,mut args: Vec<Value>) -> Value {
         match command.to_lowercase().as_str() {
             "set" => {
-                if args.len() == 2 {
-                    self.set(args.first().unwrap().clone(), args.get(1).unwrap().clone())
-                } else {
-                    Value::Error("Wrong number of arguments for SET".to_string())
+                if args.len() <2{
+                    Value::Error("Wrong number of arguments for SET".to_string());
                 }
+                let key = args.remove(0);
+                let value = args.remove(0);
+                
+                while !args.is_empty() {
+                    match args[0] {
+                        Value::BulkString(Some(ref opt)) if opt.eq_ignore_ascii_case("PX") => {
+                            if args.len() < 2 {
+                                return Value::Error("Wrong number of arguments for PX".to_string());
+                            }
+                            let px = match args.remove(1) {
+                                Value::BulkString(Some(ttl_ms_str)) => {
+                                    match ttl_ms_str.parse::<u64>() {
+                                        Ok(ttl_ms) => ttl_ms,
+                                        Err(_) => return Value::Error("Invalid TTL value for PX".to_string()),
+                                    }
+                                },
+                                _ => return Value::Error("Invalid TTL value for PX".to_string()),
+                            };
+                            let expiration_time = SystemTime::now() + Duration::from_millis(px as u64);
+                            self.expirations.insert(key.clone(), expiration_time);
+                            args.remove(0); // Remove "PX"
+                        },
+                        Value::BulkString(Some(ref opt)) if opt.eq_ignore_ascii_case("EX") => {
+                            if args.len() < 2 {
+                                return Value::Error("Wrong number of arguments for EX".to_string());
+                            }
+                            let ex = match args.remove(1) {
+                                Value::BulkString(Some(ttl_secs_str)) => {
+                                    match ttl_secs_str.parse::<u64>() {
+                                        Ok(ttl_secs) => ttl_secs,
+                                        Err(_) => return Value::Error("Invalid TTL value for PX".to_string()),
+                                    }
+                                },
+                                _ => return Value::Error("Invalid TTL value for EX".to_string()),
+                            };
+                            let expiration_time = SystemTime::now() + Duration::from_secs(ex as u64);
+                            self.expirations.insert(key.clone(), expiration_time);
+                            args.remove(0); // Remove "EX"
+                        },
+                        _ => {
+                            // If the command is not recognized, we can either ignore it or return an error.
+                            return Value::Error(format!("Unknown option: {:?}", args[0]));
+                        }
+                    }
+                }
+                self.set(key,value)
             }
             "get" => {
-                if args.len() == 1 {
-                    self.get(args.first().unwrap().clone())
-                } else {
-                    Value::Error("Wrong number of arguments for GET".to_string())
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for GET".to_string());
                 }
+                let key = args.remove(0);
+
+                // Check if the key has expired
+                if let Some(expiration_time) = self.expirations.get(&key) {
+                    if let Ok(now) = SystemTime::now().duration_since(*expiration_time) {
+                        if now > Duration::from_secs(0) {
+                            self.data.remove(&key);
+                            self.expirations.remove(&key);
+                            return Value::BulkString(None);
+                        }
+                    }
+                }
+                self.get(key)
             }
             "del" => {
                 if args.len() == 1 {
@@ -117,4 +175,5 @@ impl RedisDb {
             _ => Value::Error(format!("Unknown command: {}", command)),
         }
     }
+
 }
