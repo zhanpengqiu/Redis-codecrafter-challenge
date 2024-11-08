@@ -31,10 +31,20 @@ impl Config {
         }
     }
     pub fn insert(&mut self, name: String, value: String){
-        if name == "dbfilename".to_string(){
-            self.load_from_file(&value);
-        }
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
+    }
+    pub fn load_rdb(&mut self){
+        let mut path = match self.get("dir".to_string()){
+            Value::BulkString(Some(s))=> s,
+            _ => "./".to_string(),
+        };
+        let mut file_name = match self.get("dbfilename".to_string()){
+            Value::BulkString(Some(s))=> s,
+            _ => "dump.rdb".to_string(),
+        };
+        path.push_str("/");
+        path.push_str(&file_name);
+        self.load_from_file(&path);
     }
     pub fn get(&self, key: String) -> Value {
         match self.rdbfile.get(&key) {
@@ -85,15 +95,11 @@ impl Config {
     }
 
     pub fn load_from_file(&mut self, path: &str) -> io::Result<()> {
-        println!("Loading");
         let mut file = File::open(path)?;
-        println!("Loading");
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
-        println!("Loading");
 
         let mut cursor = Cursor::new(buffer);
-        println!("Loading");
         self.parse_rdb(&mut cursor)
     }
 

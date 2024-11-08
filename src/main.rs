@@ -34,6 +34,7 @@ async fn main() {
             .lock()
             .unwrap()
             .insert("dbfilename".to_string(), args[4].to_string());
+        redisconfig.lock().unwrap().load_rdb();
         println!("{:?}", redisconfig.lock().unwrap());    
     }
 
