@@ -21,6 +21,8 @@ pub struct Config{
     rdbfile: HashMap<String, Value>,
     rdbfile_content: HashMap<String, Value>,
     metadata: HashMap<String, Value>,
+    expirations: HashMap<String, SystemTime>,
+
 }
 impl Config {
     pub fn new() -> Self {
@@ -28,6 +30,7 @@ impl Config {
             rdbfile: HashMap::new(),
             rdbfile_content: HashMap::new(),
             metadata: HashMap::new(),
+            expirations:HashMap::new(),
         }
     }
     pub fn insert(&mut self, name: String, value: String){
@@ -51,11 +54,10 @@ impl Config {
 
         // 组合路径
         let full_path = format!("{}/{}", path, file_name);
-
         // 调用加载文件的方法
         self.load_from_file(&full_path);
     }
-    pub fn get(&self, key: String) -> Value {
+    pub fn config_get(&self, key: String) -> Value {
         match self.rdbfile.get(&key) {
             Some(value) => {
                 let valuearray=Value::Array(vec![
@@ -66,6 +68,24 @@ impl Config {
             },
             None => Value::BulkString(None),
         }
+    }
+    pub fn get(&mut self, key: String) -> Value{
+        // Check if the key has expired
+        if let Some(expiration_time) = self.expirations.get(&key) {
+            if let Ok(now) = SystemTime::now().duration_since(*expiration_time) {
+                if now > Duration::from_secs(0) {
+                    self.rdbfile_content.remove(&key);
+                    self.expirations.remove(&key);
+                    return Value::BulkString(None);
+                }
+            }
+        }
+        match self.rdbfile_content.get(&key) {
+            Some(value) => value.clone(),
+            None => Value::BulkString(None),
+        }
+        // self.rdbfile_content.get(key)
+
     }
     pub fn get_keys(&self, pattern: String) ->  Value{
         let regex = Self::pattern_to_regex(&pattern);

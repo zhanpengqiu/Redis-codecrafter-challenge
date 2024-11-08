@@ -123,18 +123,12 @@ impl RedisDb {
                     return Value::Error("Wrong number of arguments for GET".to_string());
                 }
                 let key = args.remove(0);
-
-                // Check if the key has expired
-                if let Some(expiration_time) = self.expirations.get(&key) {
-                    if let Ok(now) = SystemTime::now().duration_since(*expiration_time) {
-                        if now > Duration::from_secs(0) {
-                            self.data.remove(&key);
-                            self.expirations.remove(&key);
-                            return Value::BulkString(None);
-                        }
-                    }
-                }
-                self.get(key)
+                let key_str = match key {
+                    Value::BulkString(Some(string)) => string,
+                    _ => return Value::Error("Invalid key for GET".to_string()),
+                };
+                let mut config_lock=config.lock().unwrap();
+                config_lock.get(key_str)
             }
             "config" => {
                 //增加config get的命令
@@ -148,7 +142,7 @@ impl RedisDb {
                                 _ => return  Value::Error("Invalid key for CONFIG GET".to_string())
                             };
                             let config_lock=config.lock().unwrap();
-                            config_lock.get(key_string)
+                            config_lock.config_get(key_string)
                         } else {
                             Value::Error("Wrong number of arguments for CONFIG GET".to_string())
                         }
