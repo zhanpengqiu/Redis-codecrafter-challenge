@@ -25,7 +25,6 @@ impl Value {
                 for item in v {
                     write!(s, "{}", item.serialize()).unwrap();
                 }
-                s.push('\r');
                 s
             }
             _ => panic!("Unsupported value for serialize"),
