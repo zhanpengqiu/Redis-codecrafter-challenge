@@ -101,7 +101,6 @@ impl Config {
     
         let mut version = [0u8; 4];
         cursor.read_exact(&mut version)?;
-        assert_eq!(&version, b"0009");
     
         while cursor.position() < cursor.get_ref().len() as u64 - 8 {
             match cursor.read_u8()? {
