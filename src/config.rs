@@ -32,7 +32,6 @@ impl Config {
     }
     pub fn insert(&mut self, name: String, value: String){
         if name == "dbfilename".to_string(){
-            println!("{:?},{:?}",name,value);
             self.load_from_file(&value);
         }
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
@@ -86,11 +85,15 @@ impl Config {
     }
 
     pub fn load_from_file(&mut self, path: &str) -> io::Result<()> {
+        println!("Loading");
         let mut file = File::open(path)?;
+        println!("Loading");
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
+        println!("Loading");
 
         let mut cursor = Cursor::new(buffer);
+        println!("Loading");
         self.parse_rdb(&mut cursor)
     }
 
