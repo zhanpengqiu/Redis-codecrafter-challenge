@@ -33,18 +33,27 @@ impl Config {
     pub fn insert(&mut self, name: String, value: String){
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
     }
-    pub fn load_rdb(&mut self){
-        let mut path = match self.get("dir".to_string()){
-            Value::BulkString(Some(s))=> s,
+    pub fn load_rdb(&mut self) {
+        let dir_name = "dir".to_string();
+        let dbfile_name = "dbfilename".to_string();
+
+        // 获取目录名，默认值为 "./"
+        let path = match self.rdbfile.get(&dir_name) {
+            Some(Value::BulkString(Some(ref s))) => s.clone(),
             _ => "./".to_string(),
         };
-        let mut file_name = match self.get("dbfilename".to_string()){
-            Value::BulkString(Some(s))=> s,
+
+        // 获取文件名，默认值为 "dump.rdb"
+        let file_name = match self.rdbfile.get(&dbfile_name) {
+            Some(Value::BulkString(Some(ref s))) => s.clone(),
             _ => "dump.rdb".to_string(),
         };
-        path.push_str("/");
-        path.push_str(&file_name);
-        self.load_from_file(&path);
+
+        // 组合路径
+        let full_path = format!("{}/{}", path, file_name);
+
+        // 调用加载文件的方法
+        self.load_from_file(&full_path);
     }
     pub fn get(&self, key: String) -> Value {
         match self.rdbfile.get(&key) {
@@ -95,7 +104,7 @@ impl Config {
     }
 
     pub fn load_from_file(&mut self, path: &str) -> io::Result<()> {
-        println!("{:?}",path);
+        println!("{}",path);
         let mut file = File::open(path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
