@@ -156,6 +156,19 @@ impl RedisDb {
                     _ => Value::Error("Unknown CONFIG command".to_string()),
                 }   
             }
+            "keys" => {
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for KEYS".to_string());
+                }
+                let key = args.remove(0);
+                match key{
+                    Value::BulkString(Some(cmd)) => {
+                        let config_lock=config.lock().unwrap();
+                        config_lock.get_keys(cmd)
+                    },
+                    _ => Value::Error("Unknown CONFIG command".to_string())
+                }
+            }
             "del" => {
                 if args.len() == 1 {
                     self.delete(args.first().unwrap().clone())
