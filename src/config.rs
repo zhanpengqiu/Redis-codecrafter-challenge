@@ -32,6 +32,7 @@ impl Config {
     }
     pub fn insert(&mut self, name: String, value: String){
         if name == "dbfilename".to_string(){
+            println!("{:?},{:?}",name,value);
             self.load_from_file(&value);
         }
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
