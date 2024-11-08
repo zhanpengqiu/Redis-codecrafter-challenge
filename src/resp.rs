@@ -1,4 +1,5 @@
 use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
+use std::fmt::{Write};
 use bytes::BytesMut;
 use anyhow::Result;
 // 参数用于输入到database中
@@ -14,9 +15,19 @@ impl Value {
     pub fn serialize(self) -> String {
         match self {
             Value::SimpleString(s) => format!("+{}\r\n", s),
+            Value::Error(s) => format!("-{}\r\n", s),
             Value::BulkString(Some(s)) => format!("${}\r\n{}\r\n", s.chars().count(), s),
             Value::BulkString(None) => format!("$-1\r\n",),
             Value::Integer(i) => format!(":{}\r\n", i),
+            Value::Array(v) => {
+                let mut s = String::new();
+                write!(s, "*{}\r\n", v.len()).unwrap();
+                for item in v {
+                    write!(s, "{}", item.serialize()).unwrap();
+                }
+                s.push('\r');
+                s
+            }
             _ => panic!("Unsupported value for serialize"),
         }
     }

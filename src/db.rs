@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use crate::resp::Value;
 use std::time::{Duration, SystemTime};
-
+use crate::config::Config;
+type RedisConfig = Arc<Mutex<Config>>;
 pub struct RedisDb {
     data: HashMap<Value, Value>,
     expirations: HashMap<Value, SystemTime>,
@@ -65,15 +66,14 @@ impl RedisDb {
         }
     }
 
-    pub fn handle_command(&mut self, command: String,mut args: Vec<Value>) -> Value {
+    pub fn handle_command(&mut self, command: String,mut args: Vec<Value>,config:RedisConfig) -> Value {
         match command.to_lowercase().as_str() {
             "set" => {
                 if args.len() <2{
                     Value::Error("Wrong number of arguments for SET".to_string());
                 }
                 let key = args.remove(0);
-                let value = args.remove(0);
-                
+                let value = args.remove(0); 
                 while !args.is_empty() {
                     match args[0] {
                         Value::BulkString(Some(ref opt)) if opt.eq_ignore_ascii_case("PX") => {
@@ -135,6 +135,26 @@ impl RedisDb {
                     }
                 }
                 self.get(key)
+            }
+            "config" => {
+                //增加config get的命令
+                let cmd = args.remove(0);
+                match cmd{
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("get") => {
+                        if args.len() == 1 {
+                            let key = args.remove(0);
+                            let key_string = match key {
+                                Value::BulkString(Some(string)) => string,
+                                _ => return  Value::Error("Invalid key for CONFIG GET".to_string())
+                            };
+                            let config_lock=config.lock().unwrap();
+                            config_lock.get(key_string)
+                        } else {
+                            Value::Error("Wrong number of arguments for CONFIG GET".to_string())
+                        }
+                    },
+                    _ => Value::Error("Unknown CONFIG command".to_string()),
+                }   
             }
             "del" => {
                 if args.len() == 1 {
