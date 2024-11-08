@@ -53,7 +53,6 @@ impl Config {
         
         if pattern == "Cargo.lock".to_string(){
             //返回所有的key
-            println!("asdasdasd");
             Value::Array(
                 self.rdbfile_content
                     .keys()
