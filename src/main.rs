@@ -66,7 +66,7 @@ async fn handle_conn(stream: TcpStream,db: DataStore,redisconfig: RedisConfig) {
         let response = if let Some(v) = value {
             let (command, args) = extract_command(v).unwrap();
             let mut db_lock = db.lock().unwrap();
-            db_lock.handle_command(command, args,redisconfig.clone())
+            db_lock.handle_command(command, args, redisconfig.clone())
         } else {
             break;
         };

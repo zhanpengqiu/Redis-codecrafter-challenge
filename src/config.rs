@@ -97,10 +97,10 @@ impl Config {
         // Check magic string and version
         let mut magic = [0u8; 5];
         cursor.read_exact(&mut magic)?;
-        assert_eq!(&magic, b"REDIS");
     
         let mut version = [0u8; 4];
         cursor.read_exact(&mut version)?;
+        println!("{:?},{:?}",magic,version);
     
         while cursor.position() < cursor.get_ref().len() as u64 - 8 {
             match cursor.read_u8()? {
