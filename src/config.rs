@@ -96,7 +96,6 @@ impl Config {
     }
     pub fn get_keys(&self, pattern: String) ->  Value{
         let regex = Self::pattern_to_regex(&pattern);
-        
         if pattern == "Cargo.lock".to_string(){
             //返回所有的key
             Value::Array(
