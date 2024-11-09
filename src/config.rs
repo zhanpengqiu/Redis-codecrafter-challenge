@@ -74,6 +74,7 @@ impl Config {
     }
     pub fn get(&mut self, key: String) -> Value{
         // Check if the key has expired
+        println!("{:?},{:?}",self.expirations,SystemTime::now());
         if let Some(expiration_time) = self.expirations.get(&key) {
             if let Ok(now) = SystemTime::now().duration_since(*expiration_time) {
                 if now > Duration::from_secs(0) {
@@ -81,6 +82,7 @@ impl Config {
                     self.expirations.remove(&key);
                     return Value::BulkString(None);
                 }
+                println!("{:?},{:?}",now,Duration::from_secs(0));
             }
         }
         match self.rdbfile_content.get(&key) {
@@ -219,7 +221,7 @@ impl Config {
                             match cursor.read_u8()?{
                                 0xFC => {
                                     // 获取expire time
-                                    let expiry_time = cursor.read_u64::<LittleEndian>()? as u128;
+                                    let expiry_time = cursor.read_u64::<LittleEndian>()?;
                                     println!("Expiry time in milliseconds: {}", expiry_time);
                                     match cursor.read_u8()?{
                                         0x00 =>{
@@ -227,12 +229,15 @@ impl Config {
                                             let current_time = SystemTime::now()
                                                                     .duration_since(UNIX_EPOCH)
                                                                     .expect("Time went backwards")
-                                                                    .as_millis();
+                                                                    .as_millis() as u64;
                                             println!("{:?}",current_time);
                                             let key = self.parse_string(cursor)?;
                                             let value = self.parse_string(cursor)?;
                                             if current_time< expiry_time{
                                                 self.rdbfile_content.insert(key.clone(),Value::BulkString(Some(value.clone())));
+
+                                                let time:SystemTime = UNIX_EPOCH + Duration::from_millis(expiry_time);
+                                                self.expirations.insert(key.clone(), time);
                                                 println!("Resizedb field: num_keys={:?}, num_expires={:?}", key, value);
                                             }                                            
                                         }
@@ -241,7 +246,7 @@ impl Config {
                                 }
                                 0xFD => {
                                     // 获取expire time
-                                    let expiry_time = cursor.read_u32::<LittleEndian>()? as u64 *1000;
+                                    let expiry_time = cursor.read_u32::<LittleEndian>()?;
                                     println!("Expiry time in milliseconds: {}", expiry_time);
                                     match cursor.read_u8()?{
                                         0x00 =>{
@@ -249,11 +254,13 @@ impl Config {
                                             let current_time = SystemTime::now()
                                                                     .duration_since(UNIX_EPOCH)
                                                                     .expect("Time went backwards")
-                                                                    .as_secs();
+                                                                    .as_secs() as u32;
+                                            let key = self.parse_string(cursor)?;
+                                            let value = self.parse_string(cursor)?;
                                             if current_time< expiry_time{
-                                                let key = self.parse_string(cursor)?;
-                                                let value = self.parse_string(cursor)?;
                                                 self.rdbfile_content.insert(key.clone(),Value::BulkString(Some(value.clone())));
+                                                let time:SystemTime = UNIX_EPOCH + Duration::from_secs(expiry_time.into());
+                                                self.expirations.insert(key.clone(), time);
                                                 println!("Resizedb field: num_keys={:?}, num_expires={:?}", key, value);
                                             }                                            
                                         }
