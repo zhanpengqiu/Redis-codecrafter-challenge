@@ -2,6 +2,7 @@ use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 use std::fmt::{Write};
 use bytes::BytesMut;
 use anyhow::Result;
+use std::fmt;
 // 参数用于输入到database中
 #[derive(Clone, Debug,Eq, Hash, PartialEq)]
 pub enum Value {
@@ -31,6 +32,25 @@ impl Value {
         }
     }
 }
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::SimpleString(s) => write!(f, "{}", s),
+            Value::Error(e) => write!(f, "{}", e),
+            Value::BulkString(Some(s)) => write!(f, "{}", s),
+            Value::BulkString(None) => write!(f, "(nil)"),
+            Value::Integer(i) => write!(f, "{}", i),
+            Value::Array(arr) => {
+                let mut output = String::new();
+                for item in arr {
+                    output.push_str(&format!("{}\n", item));
+                }
+                write!(f, "{}", output.trim_end())
+            }
+        }
+    }
+}
+
 
 pub struct RespHandler {
     stream: TcpStream,

@@ -108,7 +108,7 @@ impl RedisDb {
                                 Value::BulkString(Some(ttl_secs_str)) => {
                                     match ttl_secs_str.parse::<u64>() {
                                         Ok(ttl_secs) => ttl_secs,
-                                        Err(_) => return Value::Error("Invalid TTL value for PX".to_string()),
+                                        Err(_) => return Value::Error("Invalid TTL value for EX".to_string()),
                                     }
                                 },
                                 _ => return Value::Error("Invalid TTL value for EX".to_string()),
@@ -179,6 +179,16 @@ impl RedisDb {
                     },
                     _ => Value::Error("Unknown CONFIG command".to_string())
                 }
+            }
+            "info" =>{
+                let cmd = args.remove(0);
+                match cmd{
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("replication") => {
+                        let config_lock=config.lock().unwrap();
+                        config_lock.get_Info_replication()
+                    },
+                    _ => Value::Error("Unknown INFO command".to_string()),
+                }  
             }
             "del" => {
                 if args.len() == 1 {

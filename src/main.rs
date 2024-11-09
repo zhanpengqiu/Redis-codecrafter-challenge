@@ -2,6 +2,7 @@
 mod resp;
 mod db;
 mod config;
+mod duplication;
 
 use crate::resp::Value;
 use crate::db::RedisDb;
@@ -16,27 +17,55 @@ type RedisConfig = Arc<Mutex<Config>>;
 
 #[tokio::main]
 async fn main() {
-    //读取输入的命令
+    // 读取输入的命令
     let args: Vec<String> = env::args().collect();
-    
-    let listener = TcpListener::bind("127.0.0.1:6379").await.unwrap();
+
     // 设置数据存储库和基础设置库
     let database = Arc::new(Mutex::new(RedisDb::new()));
     let redisconfig = Arc::new(Mutex::new(Config::new()));
 
+    // 默认值
+    let mut dir = "./".to_string();
+    let mut dbfilename = "dump.rdb".to_string();
+    let mut port = "6379".to_string();
+
     // 解析命令行参数并更新基础设置库
-    if args.len() > 2 && (args[1] == "--dir" || args[3] == "--dbfilename") {
-        redisconfig
-            .lock()
-            .unwrap()
-            .insert("dir".to_string(), args[2].to_string());
-        redisconfig
-            .lock()
-            .unwrap()
-            .insert("dbfilename".to_string(), args[4].to_string());
-        redisconfig.lock().unwrap().load_rdb();
-        println!("{:?}", redisconfig.lock().unwrap());    
+    if args.len() > 1 {
+        for i in 0..args.len() - 1 {
+            match args[i].as_str() {
+                "--dir" => {
+                    if i + 1 < args.len() {
+                        dir = args[i + 1].clone();
+                    }
+                }
+                "--dbfilename" => {
+                    if i + 1 < args.len() {
+                        dbfilename = args[i + 1].clone();
+                    }
+                }
+                "--port" => {
+                    if i + 1 < args.len() {
+                        port = args[i + 1].clone();
+                    }
+                }
+                _ => {}
+            }
+        }
     }
+    // 更新配置
+    {
+        let mut config = redisconfig.lock().unwrap();
+        config.insert("dir".to_string(), dir.clone());
+        config.insert("dbfilename".to_string(), dbfilename.clone());
+        config.load_rdb();
+    }
+
+    // 设置 IP 地址和端口
+    let ip = "127.0.0.1".to_string();
+    let ip_port = format!("{}:{}", ip, port);
+
+    // 绑定监听地址
+    let listener = TcpListener::bind(ip_port).await.unwrap();
 
     loop {
         let stream = listener.accept().await;

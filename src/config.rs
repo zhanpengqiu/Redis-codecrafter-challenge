@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use crate::resp::Value;
+use crate::duplication::RCliInfo;
 use std::time::{Duration, SystemTime};
 use regex::Regex;
 
@@ -9,6 +10,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom,Cursor};
 use std::error::Error;
+use std::time::UNIX_EPOCH;
 
 #[derive(Debug)]
 struct DataObject {
@@ -22,7 +24,7 @@ pub struct Config{
     rdbfile_content: HashMap<String, Value>,
     metadata: HashMap<String, Value>,
     expirations: HashMap<String, SystemTime>,
-
+    rcliinfo:RCliInfo,
 }
 impl Config {
     pub fn new() -> Self {
@@ -31,6 +33,7 @@ impl Config {
             rdbfile_content: HashMap::new(),
             metadata: HashMap::new(),
             expirations:HashMap::new(),
+            rcliinfo: RCliInfo::new(),
         }
     }
     pub fn insert(&mut self, name: String, value: String){
@@ -122,6 +125,9 @@ impl Config {
             
         }
     }
+    pub fn get_Info_replication(&self)->Value{
+        Value::BulkString(Some(self.rcliinfo.get_replication_info()))
+    }
 
     fn pattern_to_regex(pattern: &str) -> Regex {
         let escaped = regex::escape(pattern);
@@ -152,9 +158,6 @@ impl Config {
             match cursor.read_u8()? {
                 0xFA => self.parse_aux_field(cursor)?,
                 0xFE => self.parse_db_selector(cursor)?,
-                0xFB => self.parse_resizedb_field(cursor)?,
-                0xFD => self.parse_expiry_time_seconds(cursor)?,
-                0xFC => self.parse_expiry_time_milliseconds(cursor)?,
                 0xFF => break, // End of RDB file
                 value_type => self.parse_key_value_pair(value_type, cursor)?,
             }
@@ -181,9 +184,103 @@ impl Config {
     }
 
     fn parse_db_selector(&mut self, cursor: &mut Cursor<Vec<u8>>) -> io::Result<()> {
-        // Parse database selector
+        //第一个字节是选择数据库标记的
         let db_index = cursor.read_u8()?;
         println!("Switching to database index: {}", db_index);
+
+        //然后读取当前字符是不是FB，是的话进行处理数据库内容
+        let current_position = cursor.position();
+        match cursor.read_u8()?{
+            0xFB => {
+                //读取数据库大小
+                let db_hash_table_size = cursor.read_u8()?;
+                match cursor.read_u8()? {
+                    0x00 =>{
+                        // no expire time
+                        // 读取第一个字符是决定你当选的内容是什么格式的，目前只实现了00-》字符串
+                        for i in 0..db_hash_table_size{
+                            match cursor.read_u8()?{
+                                0x00 =>{
+                                    let key = self.parse_string(cursor)?;
+                                    let value = self.parse_string(cursor)?;
+                                    self.rdbfile_content.insert(key.clone(),Value::BulkString(Some(value.clone())));
+                                    println!("Resizedb field: num_keys={:?}, num_expires={:?}", key, value);
+                                }
+                                _ => println!("Falied1"),
+                            }
+                        }
+
+                    }
+                    _ =>{
+                        //读取expire time
+                        //判断第一个字节是不是fc，不是就正常获取数据
+                        for i in 0..db_hash_table_size{
+                            let tmp_position = cursor.position();
+                            match cursor.read_u8()?{
+                                0xFC => {
+                                    // 获取expire time
+                                    let expiry_time = cursor.read_u64::<LittleEndian>()? as u128;
+                                    println!("Expiry time in milliseconds: {}", expiry_time);
+                                    match cursor.read_u8()?{
+                                        0x00 =>{
+                                            //判断是不是过期了，没有过期就跳过
+                                            let current_time = SystemTime::now()
+                                                                    .duration_since(UNIX_EPOCH)
+                                                                    .expect("Time went backwards")
+                                                                    .as_millis();
+                                            println!("{:?}",current_time);
+                                            let key = self.parse_string(cursor)?;
+                                            let value = self.parse_string(cursor)?;
+                                            if current_time< expiry_time{
+                                                self.rdbfile_content.insert(key.clone(),Value::BulkString(Some(value.clone())));
+                                                println!("Resizedb field: num_keys={:?}, num_expires={:?}", key, value);
+                                            }                                            
+                                        }
+                                        _ => println!("Falied2"),
+                                    }
+                                }
+                                0xFD => {
+                                    // 获取expire time
+                                    let expiry_time = cursor.read_u32::<LittleEndian>()? as u64 *1000;
+                                    println!("Expiry time in milliseconds: {}", expiry_time);
+                                    match cursor.read_u8()?{
+                                        0x00 =>{
+                                            //判断是不是过期了，没有过期就跳过
+                                            let current_time = SystemTime::now()
+                                                                    .duration_since(UNIX_EPOCH)
+                                                                    .expect("Time went backwards")
+                                                                    .as_secs();
+                                            if current_time< expiry_time{
+                                                let key = self.parse_string(cursor)?;
+                                                let value = self.parse_string(cursor)?;
+                                                self.rdbfile_content.insert(key.clone(),Value::BulkString(Some(value.clone())));
+                                                println!("Resizedb field: num_keys={:?}, num_expires={:?}", key, value);
+                                            }                                            
+                                        }
+                                        _ => println!("Falied2"),
+                                    }
+                                }
+                                _ => {
+                                    cursor.set_position(tmp_position);
+                                    match cursor.read_u8()?{
+                                        0x00 =>{
+                                            let key = self.parse_string(cursor)?;
+                                            let value = self.parse_string(cursor)?;
+                                            self.rdbfile_content.insert(key.clone(),Value::BulkString(Some(value.clone())));
+                                            println!("Resizedb field: num_keys={:?}, num_expires={:?}", key, value);
+                                        }
+                                        _ => println!("Falied3"),
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _=>{
+                cursor.set_position(current_position);
+            }
+        };
         Ok(())
     }
 
