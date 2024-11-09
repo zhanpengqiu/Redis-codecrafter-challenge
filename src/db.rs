@@ -96,7 +96,7 @@ impl RedisDb {
                                 Value::BulkString(Some(string)) => string,
                                 _ => return Value::Error("Invalid key for SET".to_string()),
                             };
-                            config_lock.set_expriations(key_str, expiration_time);
+                            config_git lock.set_expriations(key_str, expiration_time);
                             // self.expirations.insert(key.clone(), expiration_time);
                             args.remove(0); // Remove "PX"
                         },
@@ -118,7 +118,7 @@ impl RedisDb {
                             let key_str=match key.clone(){
                                 Value::BulkString(Some(string)) => string,
                                 _ => return Value::Error("Invalid key for SET".to_string()),
-                            };
+                            }; 
                             config_lock.set_expriations(key_str, expiration_time);
                             // self.expirations.insert(key.clone(), expiration_time);
                             args.remove(0); // Remove "EX"
