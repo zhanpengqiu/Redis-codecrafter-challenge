@@ -69,6 +69,7 @@ impl RedisDb {
     pub fn handle_command(&mut self, command: String,mut args: Vec<Value>,config:RedisConfig) -> Value {
         match command.to_lowercase().as_str() {
             "set" => {
+                let mut config_lock=config.lock().unwrap();
                 if args.len() <2{
                     Value::Error("Wrong number of arguments for SET".to_string());
                 }
@@ -90,7 +91,13 @@ impl RedisDb {
                                 _ => return Value::Error("Invalid TTL value for PX".to_string()),
                             };
                             let expiration_time = SystemTime::now() + Duration::from_millis(px as u64);
-                            self.expirations.insert(key.clone(), expiration_time);
+                            //这里插入过期时间
+                            let key_str=match key.clone(){
+                                Value::BulkString(Some(string)) => string,
+                                _ => return Value::Error("Invalid key for SET".to_string()),
+                            };
+                            config_lock.set_expriations(key_str, expiration_time);
+                            // self.expirations.insert(key.clone(), expiration_time);
                             args.remove(0); // Remove "PX"
                         },
                         Value::BulkString(Some(ref opt)) if opt.eq_ignore_ascii_case("EX") => {
@@ -107,7 +114,13 @@ impl RedisDb {
                                 _ => return Value::Error("Invalid TTL value for EX".to_string()),
                             };
                             let expiration_time = SystemTime::now() + Duration::from_secs(ex as u64);
-                            self.expirations.insert(key.clone(), expiration_time);
+                            //这里插入过期时间
+                            let key_str=match key.clone(){
+                                Value::BulkString(Some(string)) => string,
+                                _ => return Value::Error("Invalid key for SET".to_string()),
+                            };
+                            config_lock.set_expriations(key_str, expiration_time);
+                            // self.expirations.insert(key.clone(), expiration_time);
                             args.remove(0); // Remove "EX"
                         },
                         _ => {
@@ -116,7 +129,11 @@ impl RedisDb {
                         }
                     }
                 }
-                self.set(key,value)
+                let key_str=match key{
+                    Value::BulkString(Some(string)) => string,
+                    _ => return Value::Error("Invalid key for SET".to_string()),
+                };
+                config_lock.set(key_str,value)
             }
             "get" => {
                 if args.is_empty() {

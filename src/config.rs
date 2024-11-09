@@ -87,6 +87,13 @@ impl Config {
         // self.rdbfile_content.get(key)
 
     }
+    pub fn set(&mut self, key: String, value: Value) -> Value {
+        self.rdbfile_content.insert(key, value);
+        Value::SimpleString("OK".to_string())
+    }
+    pub fn set_expriations(&mut self,key:String,expiration_time:SystemTime){
+        self.expirations.insert(key,expiration_time);
+    }
     pub fn get_keys(&self, pattern: String) ->  Value{
         let regex = Self::pattern_to_regex(&pattern);
         
