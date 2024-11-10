@@ -9,6 +9,7 @@ use crate::db::RedisDb;
 use crate::config::Config;
 use tokio::net::{TcpListener, TcpStream};
 use std::net::{ToSocketAddrs, SocketAddr};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use std::env;
@@ -81,6 +82,7 @@ async fn main() {
         let mut config = redisconfig.lock().unwrap();
         config.insert("dir".to_string(), dir.clone());
         config.insert("dbfilename".to_string(), dbfilename.clone());
+        config.insert("port".to_string(), port.clone());
         if replicaof != "".to_string(){
             config.set_rcliinfo("role".to_string(), "slave".to_string());
         }
@@ -92,6 +94,11 @@ async fn main() {
 
     // 绑定监听地址
     let listener = TcpListener::bind(ip_port).await.unwrap();
+
+    if !replicaof.is_empty() {
+        let redisconfig_clone = Arc::clone(&redisconfig);
+        perform_replication_handshake(&replicaof,redisconfig_clone).await;
+    }
 
     loop {
         let stream = listener.accept().await;
@@ -145,4 +152,53 @@ fn unpack_bulk_str(value: Value) -> Result<String> {
         Value::BulkString(Some(s)) => Ok(s),
         _ => Err(anyhow::anyhow!("Expected command to be a bulk string"))
     }
+}
+
+async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig) -> Result<()> {
+    // 尝试连接到主服务器
+    let master_addr: SocketAddr = replicaof.parse().expect("Failed to parse master address");
+    let master_stream = TcpStream::connect(master_addr).await.expect("Failed to connect to master");
+
+    let mut handler = resp::RespHandler::new(master_stream);
+
+    // Stage 1：sent ping to master
+    handler.write_value(Value::Array(vec![Value::BulkString(Some("PING".to_string()))])).await?;
+    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
+    println!("Master response: {}", response);
+
+    // Stage2: The replica sends twice to the master (This stageREPLCONF)
+    {
+        let mut config = redisconfig.lock().unwrap();
+        handler.write_value(Value::Array(vec![
+            Value::BulkString(Some("REPLCONF".to_string())),
+            Value::BulkString(Some("LISTENING-PORT".to_string())),
+            Value::BulkString(Some(config.get_config("port".to_string()).to_string())),
+        ])).await?;
+    }
+    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
+    println!("Master response: {}", response);
+
+    handler.write_value(Value::Array(vec![
+        Value::BulkString(Some("REPLCONF".to_string())),
+        Value::BulkString(Some("capa".to_string())),
+        Value::BulkString(Some("psync2".to_string().to_string())),
+    ])).await?;
+
+    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
+    println!("Master response: {}", response);
+
+    // Stage3: sent PSYNC cmd to master
+    // 1.The first argument is the replication ID of the master
+    //      Since this is the first time the replica is connecting to the master, the replication ID will be (a question mark)?
+    // 2.The second argument is the offset of the master
+    //      Since this is the first time the replica is connecting to the master, the offset will be -1
+    handler.write_value(Value::Array(vec![
+        Value::BulkString(Some("PSYNC".to_string())),
+        Value::BulkString(Some("?".to_string())),
+        Value::BulkString(Some("-1".to_string().to_string())),
+    ])).await?;
+    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
+    println!("Master response: {}", response);
+
+    Ok(())
 }

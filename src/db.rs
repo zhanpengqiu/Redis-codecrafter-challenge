@@ -196,6 +196,55 @@ impl RedisDb {
                     _ => Value::Error("Unknown INFO command".to_string()),
                 }  
             }
+            "replconf" => {
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for REPLCONF".to_string());
+                }
+                let cmd = args.remove(0);
+                match cmd{
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("listening-port") => {
+                        if args.len() == 1 {
+                            let arg1 = args.remove(0);
+                            // TODO: handle port for master
+                            println!("{:?}",arg1);
+                            Value::SimpleString("OK".to_string())
+                        } else {
+                            Value::Error("Wrong number of arguments for listening-port".to_string())
+                        }
+                    },
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("capa") => {
+                        if args.len() == 1 {
+                            let arg1 = args.remove(0);
+                            // TODO: handle psync2 mode
+
+                            Value::SimpleString("OK".to_string())
+                        } else {
+                            Value::Error("Wrong number of arguments for listening-port".to_string())
+                        }
+                    },
+                    _ => Value::Error("Unknown REPLCONF command".to_string()),
+                }
+            }
+            "psync" =>{
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for REPLCONF".to_string());
+                }
+                let cmd = args.remove(0);
+                // 处理第一个参数，第一次发送的话
+                match cmd{
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("?") => {
+                        if args.len() == 1 {
+                            let arg1 = args.remove(0);
+                            // TODO: handle port for master
+                            println!("{:?}",arg1);
+                            Value::SimpleString("OK".to_string())
+                        } else {
+                            Value::Error("Wrong number of arguments for PSYNC".to_string())
+                        }
+                    },
+                    _ => Value::Error("Unknown REPLCONF command".to_string()),
+                }
+            }
             "del" => {
                 if args.len() == 1 {
                     self.delete(args.first().unwrap().clone())

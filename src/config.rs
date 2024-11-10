@@ -47,6 +47,17 @@ impl Config {
     pub fn insert(&mut self, name: String, value: String){
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
     }
+    pub fn get_config(&self, key:String)->String{
+        match self.rdbfile.get(&key) {
+            Some(value) => {
+                match value {
+                    Value::BulkString(Some(s)) => s.clone(),
+                    _ => "Unknown".to_string(),
+                }
+            },
+            None => "Unknown".to_string(),
+        }
+    }
     pub fn load_rdb(&mut self) {
         let dir_name = "dir".to_string();
         let dbfile_name = "dbfilename".to_string();
