@@ -216,7 +216,6 @@ impl RedisDb {
                         if args.len() == 1 {
                             let arg1 = args.remove(0);
                             // TODO: handle psync2 mode
-
                             Value::SimpleString("OK".to_string())
                         } else {
                             Value::Error("Wrong number of arguments for listening-port".to_string())
@@ -236,8 +235,20 @@ impl RedisDb {
                         if args.len() == 1 {
                             let arg1 = args.remove(0);
                             // TODO: handle port for master
-                            println!("{:?}",arg1);
-                            Value::SimpleString("OK".to_string())
+                            let config_lock=config.lock().unwrap();
+                            let mode = "FULLRESYNC".to_string();
+                            let repl_id = match config_lock.get_key_info_of_replication("master_replid".to_string()){
+                                Value::SimpleString(s) => s,
+                                _ => "Unknown".to_string()
+                            };
+                            let master_repl_offset = match config_lock.get_key_info_of_replication("master_repl_offset".to_string()){
+                                Value::Integer(s) => s.to_string(),
+                                _ => "Unknown".to_string()
+                            };
+                            let response = format!("{} {} {}",mode,repl_id,master_repl_offset);
+                            Value::SimpleString(response)
+                            //回复一个参数
+                            // Value::SimpleString("OK".to_string())
                         } else {
                             Value::Error("Wrong number of arguments for PSYNC".to_string())
                         }

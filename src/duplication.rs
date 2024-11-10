@@ -50,4 +50,11 @@ impl RCliInfo {
     pub fn set_role(&mut self, role:String){
         self.replication_info.insert("role".to_string(), Value::SimpleString(role));
     }
+
+    pub fn get_param(&self, param:String)->Value{
+        match self.replication_info.get(&param) {
+            Some(value) => value.clone(),
+            None => Value::BulkString(None),
+        }
+    }
 }

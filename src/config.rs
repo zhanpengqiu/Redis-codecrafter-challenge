@@ -150,6 +150,14 @@ impl Config {
         Value::BulkString(Some(self.rcliinfo.get_replication_info()))
     }
 
+    pub fn get_key_info_of_replication(&self, key:String)->Value{
+        if let replication_info = self.rcliinfo.get_param(key) {
+            replication_info
+        } else {
+            Value::BulkString(None)
+        }
+    }
+
     fn pattern_to_regex(pattern: &str) -> Regex {
         let escaped = regex::escape(pattern);
         let pattern = escaped.replace("\\*", ".*").replace("\\?", ".");
