@@ -149,6 +149,9 @@ impl RedisDb {
             }
             "config" => {
                 //增加config get的命令
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for KEYS".to_string());
+                }
                 let cmd = args.remove(0);
                 match cmd{
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("get") => {
@@ -181,6 +184,9 @@ impl RedisDb {
                 }
             }
             "info" =>{
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for KEYS".to_string());
+                }
                 let cmd = args.remove(0);
                 match cmd{
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("replication") => {

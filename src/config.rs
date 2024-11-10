@@ -36,6 +36,14 @@ impl Config {
             rcliinfo: RCliInfo::new(),
         }
     }
+    pub fn set_rcliinfo(&mut self,key:String,value:String){
+        match key.as_str(){
+            "role" => self.rcliinfo.set_role(value),
+            _ => {
+                println!("Unknown config key: {}", key);
+            },
+        }
+    }
     pub fn insert(&mut self, name: String, value: String){
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
     }

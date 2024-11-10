@@ -47,4 +47,7 @@ impl RCliInfo {
 
         response.to_string()
     }
+    pub fn set_role(&mut self, role:String){
+        self.replication_info.insert("role".to_string(), Value::SimpleString(role));
+    }
 }

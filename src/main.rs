@@ -8,6 +8,7 @@ use crate::resp::Value;
 use crate::db::RedisDb;
 use crate::config::Config;
 use tokio::net::{TcpListener, TcpStream};
+use std::net::{ToSocketAddrs, SocketAddr};
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
 use std::env;
@@ -28,6 +29,7 @@ async fn main() {
     let mut dir = "./".to_string();
     let mut dbfilename = "dump.rdb".to_string();
     let mut port = "6379".to_string();
+    let mut replicaof = "".to_string();
 
     // 解析命令行参数并更新基础设置库
     if args.len() > 1 {
@@ -48,18 +50,42 @@ async fn main() {
                         port = args[i + 1].clone();
                     }
                 }
+                "--replicaof"=>{
+                    if i + 1 < args.len() {
+                        let replicaof_ip_port = args[i + 1].clone();
+                        let parts: Vec<&str> = replicaof_ip_port.split_whitespace().collect();
+                        if parts.len() != 2 {
+                            println!("Replicaof set failed");
+                        }
+                        let host = parts[0];
+                        let port = parts[1];
+                    
+                        // 尝试将主机名解析为 IP 地址
+                        match format!("{}:{}", host, port).to_socket_addrs() {
+                            Ok(mut addrs) => {
+                                if let Some(addr) = addrs.next() {
+                                    replicaof=format!("{}:{}", addr.ip(), addr.port());
+                                }
+                            },
+                            Err(_) => println!("to_socket_addrs failed"),
+                        }
+                    }
+                }
                 _ => {}
             }
         }
     }
+    println!("{:?}",replicaof);
     // 更新配置
     {
         let mut config = redisconfig.lock().unwrap();
         config.insert("dir".to_string(), dir.clone());
         config.insert("dbfilename".to_string(), dbfilename.clone());
+        if replicaof != "".to_string(){
+            config.set_rcliinfo("role".to_string(), "slave".to_string());
+        }
         config.load_rdb();
     }
-
     // 设置 IP 地址和端口
     let ip = "127.0.0.1".to_string();
     let ip_port = format!("{}:{}", ip, port);
@@ -86,7 +112,6 @@ async fn main() {
     }
 }
 
-// *2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
 async fn handle_conn(stream: TcpStream,db: DataStore,redisconfig: RedisConfig) {
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
