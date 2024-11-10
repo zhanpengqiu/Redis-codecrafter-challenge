@@ -28,7 +28,6 @@ impl Value {
                 }
                 s
             }
-            _ => panic!("Unsupported value for serialize"),
         }
     }
 }

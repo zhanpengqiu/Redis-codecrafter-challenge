@@ -97,7 +97,7 @@ async fn main() {
 
     if !replicaof.is_empty() {
         let redisconfig_clone = Arc::clone(&redisconfig);
-        perform_replication_handshake(&replicaof,redisconfig_clone).await;
+        let _ = perform_replication_handshake(&replicaof,redisconfig_clone).await;
     }
 
     loop {
@@ -168,10 +168,10 @@ async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig)
 
     // Stage2: The replica sends twice to the master (This stageREPLCONF)
     {
-        let mut config = redisconfig.lock().unwrap();
+        let config = redisconfig.lock().unwrap();
         handler.write_value(Value::Array(vec![
             Value::BulkString(Some("REPLCONF".to_string())),
-            Value::BulkString(Some("LISTENING-PORT".to_string())),
+            Value::BulkString(Some("listening-port".to_string())),
             Value::BulkString(Some(config.get_config("port".to_string()).to_string())),
         ])).await?;
     }
@@ -192,6 +192,8 @@ async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig)
     //      Since this is the first time the replica is connecting to the master, the replication ID will be (a question mark)?
     // 2.The second argument is the offset of the master
     //      Since this is the first time the replica is connecting to the master, the offset will be -1
+
+    // TODO: code needs to be refactored
     handler.write_value(Value::Array(vec![
         Value::BulkString(Some("PSYNC".to_string())),
         Value::BulkString(Some("?".to_string())),

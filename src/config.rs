@@ -77,7 +77,7 @@ impl Config {
         // 组合路径
         let full_path = format!("{}/{}", path, file_name);
         // 调用加载文件的方法
-        self.load_from_file(&full_path);
+        let _ = self.load_from_file(&full_path);
     }
     pub fn config_get(&self, key: String) -> Value {
         match self.rdbfile.get(&key) {
@@ -343,7 +343,7 @@ impl Config {
         Ok(())
     }
 
-    fn parse_key_value_pair(&mut self, value_type: u8, cursor: &mut Cursor<Vec<u8>>) -> io::Result<()> {
+    fn parse_key_value_pair(&mut self, _value_type: u8, cursor: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         // Parse key-value pair
         let key = self.parse_string(cursor)?;
         let value = self.parse_value(cursor)?;
