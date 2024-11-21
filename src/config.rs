@@ -1,10 +1,11 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use crate::resp::Value;
 use crate::duplication::RCliInfo;
+use crate::slave_stream::Slaves;
 use std::time::{Duration, SystemTime};
 use regex::Regex;
+use crate::resp::RespHandler;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::File;
@@ -19,12 +20,14 @@ struct DataObject {
 }
 
 #[derive(Debug)]
+#[warn(unused_variables)]
 pub struct Config{
     rdbfile: HashMap<String, Value>,
     rdbfile_content: HashMap<String, Value>,
     metadata: HashMap<String, Value>,
     expirations: HashMap<String, SystemTime>,
     rcliinfo:RCliInfo,
+    slaves_handler:Slaves,
 }
 impl Config {
     pub fn new() -> Self {
@@ -34,7 +37,21 @@ impl Config {
             metadata: HashMap::new(),
             expirations:HashMap::new(),
             rcliinfo: RCliInfo::new(),
+            slaves_handler: Slaves::new(),//需要异步处理
         }
+    }
+    pub async fn new_slave_come(&mut self,syn_addr:String,listen_addr:String){
+        println!("{:?}.{:?}",syn_addr,listen_addr);
+
+        //插入一个握手信息到slave里面
+        self.slaves_handler.shake_hand_addr_info(syn_addr,listen_addr).await;
+
+    }
+    pub async fn add_slave_resphandler(&mut self,in_addr:String){
+        println!("{:?}",in_addr);
+
+        //在slave信息里面实现连接
+        self.slaves_handler.add_new_slave_handler(in_addr).await;
     }
     pub fn set_rcliinfo(&mut self,key:String,value:String){
         match key.as_str(){
@@ -119,7 +136,7 @@ impl Config {
         self.expirations.insert(key,expiration_time);
     }
     pub fn get_keys(&self, pattern: String) ->  Value{
-        let regex = Self::pattern_to_regex(&pattern);
+        let _regex = Self::pattern_to_regex(&pattern);
         if pattern == "Cargo.lock".to_string(){
             //返回所有的key
             Value::Array(
@@ -146,16 +163,12 @@ impl Config {
             
         }
     }
-    pub fn get_Info_replication(&self)->Value{
+    pub fn get_info_replication(&self)->Value{
         Value::BulkString(Some(self.rcliinfo.get_replication_info()))
     }
 
     pub fn get_key_info_of_replication(&self, key:String)->Value{
-        if let replication_info = self.rcliinfo.get_param(key) {
-            replication_info
-        } else {
-            Value::BulkString(None)
-        }
+        self.rcliinfo.get_param(key)
     }
 
     fn pattern_to_regex(pattern: &str) -> Regex {
@@ -227,7 +240,7 @@ impl Config {
                     0x00 =>{
                         // no expire time
                         // 读取第一个字符是决定你当选的内容是什么格式的，目前只实现了00-》字符串
-                        for i in 0..db_hash_table_size{
+                        for _i in 0..db_hash_table_size{
                             match cursor.read_u8()?{
                                 0x00 =>{
                                     let key = self.parse_string(cursor)?;
@@ -243,7 +256,7 @@ impl Config {
                     _ =>{
                         //读取expire time
                         //判断第一个字节是不是fc，不是就正常获取数据
-                        for i in 0..db_hash_table_size{
+                        for _i in 0..db_hash_table_size{
                             let tmp_position = cursor.position();
                             match cursor.read_u8()?{
                                 0xFC => {
@@ -321,7 +334,7 @@ impl Config {
     fn parse_resizedb_field(&mut self, cursor: &mut Cursor<Vec<u8>>) -> io::Result<()> {
         // Parse resizedb field
         let num_of_items = cursor.read_u16::<LittleEndian>()?;
-        for i in 0..num_of_items {
+        for _i in 0..num_of_items {
             let encoding_type = cursor.read_u8()?;
             match encoding_type{
                 0x00=> {

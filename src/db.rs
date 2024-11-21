@@ -1,6 +1,8 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use tokio::sync::{Mutex};
+use std::sync::Arc;
 use std::thread;
+use std::net::SocketAddr;
 use crate::resp::Value;
 use std::time::{Duration, SystemTime};
 use crate::config::Config;
@@ -15,18 +17,6 @@ impl RedisDb {
         RedisDb {
             data: HashMap::new(),
             expirations: HashMap::new(),
-        }
-    }
-
-    pub fn set(&mut self, key: Value, value: Value) -> Value {
-        self.data.insert(key, value);
-        Value::SimpleString("OK".to_string())
-    }
-
-    pub fn get(&self, key: Value) -> Value {
-        match self.data.get(&key) {
-            Some(value) => value.clone(),
-            None => Value::BulkString(None),
         }
     }
 
@@ -66,10 +56,10 @@ impl RedisDb {
         }
     }
 
-    pub fn handle_command(&mut self, command: String,mut args: Vec<Value>,config:RedisConfig) -> Value {
+    pub async fn handle_command(&mut self, command: String,mut args: Vec<Value>,config:RedisConfig,addr:SocketAddr) -> Value {
         match command.to_lowercase().as_str() {
             "set" => {
-                let mut config_lock=config.lock().unwrap();
+                let mut config_lock=config.lock().await;
                 if args.len() <2{
                     Value::Error("Wrong number of arguments for SET".to_string());
                 }
@@ -144,7 +134,7 @@ impl RedisDb {
                     Value::BulkString(Some(string)) => string,
                     _ => return Value::Error("Invalid key for GET".to_string()),
                 };
-                let mut config_lock=config.lock().unwrap();
+                let mut config_lock=config.lock().await;
                 config_lock.get(key_str)
             }
             "config" => {
@@ -161,7 +151,7 @@ impl RedisDb {
                                 Value::BulkString(Some(string)) => string,
                                 _ => return  Value::Error("Invalid key for CONFIG GET".to_string())
                             };
-                            let config_lock=config.lock().unwrap();
+                            let config_lock=config.lock().await;
                             config_lock.config_get(key_string)
                         } else {
                             Value::Error("Wrong number of arguments for CONFIG GET".to_string())
@@ -177,7 +167,7 @@ impl RedisDb {
                 let key = args.remove(0);
                 match key{
                     Value::BulkString(Some(cmd)) => {
-                        let config_lock=config.lock().unwrap();
+                        let config_lock=config.lock().await;
                         config_lock.get_keys(cmd)
                     },
                     _ => Value::Error("Unknown CONFIG command".to_string())
@@ -190,8 +180,8 @@ impl RedisDb {
                 let cmd = args.remove(0);
                 match cmd{
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("replication") => {
-                        let config_lock=config.lock().unwrap();
-                        config_lock.get_Info_replication()
+                        let config_lock=config.lock().await;
+                        config_lock.get_info_replication()
                     },
                     _ => Value::Error("Unknown INFO command".to_string()),
                 }  
@@ -204,9 +194,12 @@ impl RedisDb {
                 match cmd{
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("listening-port") => {
                         if args.len() == 1 {
-                            let arg1 = args.remove(0);
+                            let port = args.remove(0);
                             // TODO: handle port for master
-                            println!("{:?}",arg1);
+                            let mut config_lock=config.lock().await;
+                            let slave_addr= format!("{}:{}",addr.clone().ip().to_string() , port);
+                            config_lock.new_slave_come(addr.clone().to_string(),slave_addr).await;
+
                             Value::SimpleString("OK".to_string())
                         } else {
                             Value::Error("Wrong number of arguments for listening-port".to_string())
@@ -214,7 +207,7 @@ impl RedisDb {
                     },
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("capa") => {
                         if args.len() == 1 {
-                            let arg1 = args.remove(0);
+                            let _arg1 = args.remove(0);
                             // TODO: handle psync2 mode
                             Value::SimpleString("OK".to_string())
                         } else {
@@ -233,9 +226,9 @@ impl RedisDb {
                 match cmd{
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("?") => {
                         if args.len() == 1 {
-                            let arg1 = args.remove(0);
+                            let _arg1 = args.remove(0);
                             // TODO: handle port for master
-                            let config_lock=config.lock().unwrap();
+                            let mut config_lock=config.lock().await;
                             let mode = "FULLRESYNC".to_string();
                             let repl_id = match config_lock.get_key_info_of_replication("master_replid".to_string()){
                                 Value::SimpleString(s) => s,
@@ -246,15 +239,36 @@ impl RedisDb {
                                 _ => "Unknown".to_string()
                             };
                             let response = format!("{} {} {}",mode,repl_id,master_repl_offset);
+
+                            //开始增加一个handler发送文件给从机
+                            config_lock.add_slave_resphandler(addr.to_string()).await;
+
                             Value::SimpleString(response)
                             //回复一个参数
-                            // Value::SimpleString("OK".to_string())
                         } else {
                             Value::Error("Wrong number of arguments for PSYNC".to_string())
                         }
                     },
                     _ => Value::Error("Unknown REPLCONF command".to_string()),
                 }
+            }
+            "type" => {
+                if args.is_empty(){
+                    return Value::Error("Wrong number of arguments for TYPE".to_string());
+                }
+                let value = args.remove(0);
+                let value_str=match value{
+                    Value::BulkString(Some(s))=> s,
+                    _ => return Value::Error("Invalid value for TYPE".to_string()),
+                };
+        
+                let mut config_lock=config.lock().await;
+                let res = match config_lock.get(value_str){
+                    Value::BulkString(Some(_))=> "string".to_string(),
+                    Value::BulkString(None)=> "none".to_string(),
+                    _ => "".to_string(),
+                };
+                Value::SimpleString(res)
             }
             "del" => {
                 if args.len() == 1 {

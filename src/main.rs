@@ -3,15 +3,18 @@ mod resp;
 mod db;
 mod config;
 mod duplication;
+mod slave_stream;
 
 use crate::resp::Value;
 use crate::db::RedisDb;
+use crate::slave_stream::Slaves;
 use crate::config::Config;
 use tokio::net::{TcpListener, TcpStream};
 use std::net::{ToSocketAddrs, SocketAddr};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use anyhow::Result;
-use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex;
+use std::sync::{Arc};
 use std::env;
 
 type DataStore = Arc<Mutex<RedisDb>>;
@@ -79,7 +82,7 @@ async fn main() {
     println!("{:?}",replicaof);
     // 更新配置
     {
-        let mut config = redisconfig.lock().unwrap();
+        let mut config = redisconfig.lock().await;
         config.insert("dir".to_string(), dir.clone());
         config.insert("dbfilename".to_string(), dbfilename.clone());
         config.insert("port".to_string(), port.clone());
@@ -119,16 +122,26 @@ async fn main() {
     }
 }
 
-async fn handle_conn(stream: TcpStream,db: DataStore,redisconfig: RedisConfig) {
+async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig) {
+    let addr = stream.peer_addr().unwrap();
+    
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
     loop {
         let value = handler.read_value().await.unwrap();
         println!("Got value {:?}", value);
+
+        // 提前声明变量
+        let (command, args): (String, Vec<Value>);
+        
         let response = if let Some(v) = value {
-            let (command, args) = extract_command(v).unwrap();
-            let mut db_lock = db.lock().unwrap();
-            db_lock.handle_command(command, args, redisconfig.clone())
+            let extracted = extract_command(v).unwrap();
+            command = extracted.0; // 初始化变量
+            args = extracted.1; // 初始化变量
+            
+            let mut db_lock = db.lock().await;
+            let respon = db_lock.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
+            respon
         } else {
             break;
         };
@@ -168,7 +181,7 @@ async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig)
 
     // Stage2: The replica sends twice to the master (This stageREPLCONF)
     {
-        let config = redisconfig.lock().unwrap();
+        let config = redisconfig.lock().await;
         handler.write_value(Value::Array(vec![
             Value::BulkString(Some("REPLCONF".to_string())),
             Value::BulkString(Some("listening-port".to_string())),
@@ -200,6 +213,7 @@ async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig)
         Value::BulkString(Some("-1".to_string().to_string())),
     ])).await?;
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
+    
     println!("Master response: {}", response);
 
     Ok(())

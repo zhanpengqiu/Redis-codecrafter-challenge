@@ -4,13 +4,17 @@ use bytes::BytesMut;
 use anyhow::Result;
 use std::fmt;
 // 参数用于输入到database中
+
 #[derive(Clone, Debug,Eq, Hash, PartialEq)]
+#[warn(dead_code)]
+#[warn(unused_variables)]
 pub enum Value {
     SimpleString(String),
     Error(String),
     BulkString(Option<String>),
     Integer(i64),
     Array(Vec<Value>),
+    RdbFile(Vec<u8>),
 }
 impl Value {
     pub fn serialize(self) -> String {
@@ -28,6 +32,7 @@ impl Value {
                 }
                 s
             }
+            Value::RdbFile(s) => format!("${}\r\n", s.len()),
         }
     }
 }
@@ -45,12 +50,13 @@ impl fmt::Display for Value {
                     output.push_str(&format!("{}\n", item));
                 }
                 write!(f, "{}", output.trim_end())
-            }
+            },
+            Value::RdbFile(_s) => write!(f, "file"),
         }
     }
 }
 
-
+#[derive(Debug)]
 pub struct RespHandler {
     stream: TcpStream,
     buffer: BytesMut,
@@ -71,7 +77,20 @@ impl RespHandler {
         Ok(Some(v))
     }
     pub async fn write_value(&mut self, value: Value) -> Result<()> {
-        self.stream.write(value.serialize().as_bytes()).await?;
+        match value{
+            Value::RdbFile(f) => {
+                // 创建一个缓冲区来存储要写入的所有字节
+                let mut buffer = Vec::new();
+                buffer.extend_from_slice(format!("${}\r\n", f.len()).as_bytes());
+                buffer.extend_from_slice(&f);
+                // 一次性写入所有数据
+                self.stream.write_all(&buffer).await?;
+            },
+            _=> {
+                self.stream.write(value.serialize().as_bytes()).await?;
+            }
+        };
+        
         Ok(())
     }
 }
@@ -112,6 +131,15 @@ fn parse_bulk_string(buffer: BytesMut) -> Result<(Value, usize)> {
     } else {
         return Err(anyhow::anyhow!("Invalid array format {:?}", buffer));
     };
+    
+    if bulk_str_len >100 {
+        let temp_buf = &buffer[bytes_consumed..bytes_consumed+5];
+        if String::from_utf8(temp_buf.to_vec()).unwrap() == "REDIS".to_string(){
+            println!("rdbfile");
+            return Ok((Value::Array(vec![Value::BulkString(Some("RDBFILE".to_string()))]),1))
+        }
+    }
+
     let end_of_bulk_str = bytes_consumed + bulk_str_len as usize;
     let total_parsed = end_of_bulk_str + 2;
     Ok((Value::BulkString(Some(String::from_utf8(buffer[bytes_consumed..end_of_bulk_str].to_vec())?)), total_parsed))
