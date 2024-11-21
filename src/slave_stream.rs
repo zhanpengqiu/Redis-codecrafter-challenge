@@ -48,6 +48,7 @@ impl Slaves {
             Some(listen_addr) => {
                 let mut slave_handler_lock = self.slave_handler.lock().await;
                 let mut slave_offsets_lock = self.slave_offsets.lock().await;
+                println!("{:?}",listen_addr);
                 let mut handler = RespHandler::new(TcpStream::connect(listen_addr).await.unwrap());
                 println!("Add new Slave{:?}", handler);
                 let val=Slaves::get_rdbfile("dasd".to_string());
@@ -67,9 +68,6 @@ impl Slaves {
 
         // 读取文件内容到缓冲区
         file.read_to_end(&mut buffer).unwrap();
-
-        // 打印缓冲区的内容（以十六进制形式）
-        println!("Buffer content (hex): {:?}", buffer);
 
         Value::RdbFile(buffer)
     }
