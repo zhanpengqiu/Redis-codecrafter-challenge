@@ -64,7 +64,7 @@ impl Slaves {
     }
     pub fn get_rdbfile(path:String)->Value{
         // 打开文件
-        let mut file = File::open("./dump.rdb").unwrap();
+        let mut file = File::open("rdb").unwrap();
 
         // 创建一个缓冲区
         let mut buffer = Vec::new();
