@@ -4,6 +4,7 @@ use crate::resp::Value;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use std::collections::HashMap;
+use hex;
 use std::sync::Arc;
 use tokio::time;
 use std::fs::File;
@@ -43,7 +44,7 @@ impl Slaves {
 
     pub async fn add_new_slave_handler(&mut self,mut handler:RespHandler){
         //写入数据进去
-        let val=Slaves::get_rdbfile("dasd".to_string());
+        let val=Slaves::get_empty_rdbfile();
         handler.write_value(val).await.unwrap();
 
         // let slave_addrs_lock = self.slave_addrs.lock().await;
@@ -62,15 +63,13 @@ impl Slaves {
         //     None => println!("No handler found for {}",in_addr),
         // }
     }
-    pub fn get_rdbfile(path:String)->Value{
+    pub fn get_empty_rdbfile()->Value{
         // 打开文件
-        let mut file = File::open("./dump.rdb").unwrap();
-
+        let empty_file_payload = hex::decode("524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5aa2").unwrap();
         // 创建一个缓冲区
         let mut buffer = Vec::new();
-
-        // 读取文件内容到缓冲区
-        file.read_to_end(&mut buffer).unwrap();
+        // 将解码后的字节数据放入缓冲区
+        buffer.extend_from_slice(&empty_file_payload);
 
         Value::RdbFile(buffer)
     }
