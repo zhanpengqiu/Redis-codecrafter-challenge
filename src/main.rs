@@ -147,6 +147,17 @@ async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig)
         };
         println!("Sending value {:?}", response);
         handler.write_value(response).await.unwrap();
+        
+        //处理同步信息
+        match command.to_lowercase().as_str() {
+            "psync" => {
+                let mut redisconfig_lock=redisconfig.lock().await;
+                redisconfig_lock.add_slave_resphandler(handler).await;
+                break;
+            }
+            _ => {}
+        };
+       
     }
 }
 fn extract_command(value: Value) -> Result<(String, Vec<Value>)> {
@@ -214,6 +225,10 @@ async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig)
     ])).await?;
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     
+    println!("Master response: {}", response);
+
+    //读取主机送来的信息
+    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
 
     Ok(())

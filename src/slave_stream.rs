@@ -41,23 +41,26 @@ impl Slaves {
         println!("New ShakeHand connection came");
     }
 
-    pub async fn add_new_slave_handler(&mut self,in_addr:String){
-        let slave_addrs_lock = self.slave_addrs.lock().await;
+    pub async fn add_new_slave_handler(&mut self,mut handler:RespHandler){
+        //写入数据进去
+        let val=Slaves::get_rdbfile("dasd".to_string());
+        handler.write_value(val).await.unwrap();
+
+        // let slave_addrs_lock = self.slave_addrs.lock().await;
         
-        match slave_addrs_lock.get(&in_addr){
-            Some(listen_addr) => {
-                let mut slave_handler_lock = self.slave_handler.lock().await;
-                let mut slave_offsets_lock = self.slave_offsets.lock().await;
-                println!("{:?}",listen_addr);
-                let mut handler = RespHandler::new(TcpStream::connect(listen_addr).await.unwrap());
-                println!("Add new Slave{:?}", handler);
-                let val=Slaves::get_rdbfile("dasd".to_string());
-                handler.write_value(val).await.unwrap();
-                slave_handler_lock.push(handler);
-                slave_offsets_lock.push(0);
-            },
-            None => println!("No handler found for {}",in_addr),
-        }
+        // match slave_addrs_lock.get(&in_addr){
+        //     Some(listen_addr) => {
+        //         let mut slave_handler_lock = self.slave_handler.lock().await;
+        //         let mut slave_offsets_lock = self.slave_offsets.lock().await;
+        //         let mut handler = RespHandler::new(TcpStream::connect(listen_addr).await.unwrap());
+        //         println!("Add new Slave{:?}", handler);
+        //         let val=Slaves::get_rdbfile("dasd".to_string());
+        //         handler.write_value(val).await.unwrap();
+        //         slave_handler_lock.push(handler);
+        //         slave_offsets_lock.push(0);
+        //     },
+        //     None => println!("No handler found for {}",in_addr),
+        // }
     }
     pub fn get_rdbfile(path:String)->Value{
         // 打开文件

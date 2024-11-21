@@ -228,7 +228,7 @@ impl RedisDb {
                         if args.len() == 1 {
                             let _arg1 = args.remove(0);
                             // TODO: handle port for master
-                            let mut config_lock=config.lock().await;
+                            let config_lock=config.lock().await;
                             let mode = "FULLRESYNC".to_string();
                             let repl_id = match config_lock.get_key_info_of_replication("master_replid".to_string()){
                                 Value::SimpleString(s) => s,
@@ -239,9 +239,6 @@ impl RedisDb {
                                 _ => "Unknown".to_string()
                             };
                             let response = format!("{} {} {}",mode,repl_id,master_repl_offset);
-
-                            //开始增加一个handler发送文件给从机
-                            config_lock.add_slave_resphandler(addr.to_string()).await;
 
                             Value::SimpleString(response)
                             //回复一个参数

@@ -41,17 +41,13 @@ impl Config {
         }
     }
     pub async fn new_slave_come(&mut self,syn_addr:String,listen_addr:String){
-        println!("{:?}.{:?}",syn_addr,listen_addr);
-
         //插入一个握手信息到slave里面
         self.slaves_handler.shake_hand_addr_info(syn_addr,listen_addr).await;
 
     }
-    pub async fn add_slave_resphandler(&mut self,in_addr:String){
-        println!("{:?}",in_addr);
-
+    pub async fn add_slave_resphandler(&mut self,handler:RespHandler){
         //在slave信息里面实现连接
-        self.slaves_handler.add_new_slave_handler(in_addr).await;
+        self.slaves_handler.add_new_slave_handler(handler).await;
     }
     pub fn set_rcliinfo(&mut self,key:String,value:String){
         match key.as_str(){
