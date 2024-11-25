@@ -93,7 +93,7 @@ impl Slaves {
             _ => return Err(anyhow::anyhow!("Unexpected command format")),
         };
         match command_string.to_lowercase().as_str(){
-            "set"|"del"|"ping" =>{
+            "set"|"del" =>{
                 self.command_hash.push(cmd.clone());
             }
             _ => {
