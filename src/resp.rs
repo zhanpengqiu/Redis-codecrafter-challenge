@@ -73,7 +73,7 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
-        println!("{:?}",self.buffer.clone().split());
+        // println!("{:?}",self.buffer.clone().split());
         let (v, _) = parse_message(self.buffer.split())?;
         Ok(Some(v)) 
     }
@@ -106,6 +106,7 @@ fn parse_message(buffer: BytesMut) -> Result<(Value, usize)> {
 fn parse_simple_string(buffer: BytesMut) -> Result<(Value, usize)> {
     if let Some((line, len)) = read_until_crlf(&buffer[1..]) {
         let string = String::from_utf8(line.to_vec()).unwrap();
+        println!("{}", string);
         return Ok((Value::SimpleString(string), len + 1))
     }
     return Err(anyhow::anyhow!("Invalid string {:?}", buffer));
