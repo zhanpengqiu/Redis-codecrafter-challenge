@@ -75,7 +75,7 @@ impl RespHandler {
         }
         println!("{:?}",self.buffer.clone().split());
         let (v, _) = parse_message(self.buffer.split())?;
-        Ok(Some(v))
+        Ok(Some(v)) 
     }
     pub async fn write_value(&mut self, value: Value) -> Result<()> {
         match value{
