@@ -127,7 +127,6 @@ async fn main() {
 
 async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig) {
     let addr = stream.peer_addr().unwrap();
-    time::sleep(time::Duration::from_millis(50)).await;
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
     loop {
