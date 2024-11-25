@@ -238,7 +238,7 @@ async fn perform_replication_handshake(replicaof: &str,db:DataStore,redisconfig:
     //读取主机送来的信息
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     //TODO: realize redis database storage
-    println!("Master response: {},{:?}", response,handler);
+    println!("Master response: {:?},{:?}", response,handler);
 
     //TODO: realize command execution
     tokio::spawn(async move {
