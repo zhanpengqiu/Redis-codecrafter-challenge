@@ -73,7 +73,7 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
-        // println!("{:?}",self.buffer.clone().split());
+        println!("{:?}",self.buffer.clone().split());
         let (v, index) = parse_message(self.buffer.split())?;
         println!("{:?}",self.buffer.clone().split());
         Ok(Some(v)) 
