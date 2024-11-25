@@ -65,7 +65,7 @@ impl RespHandler {
     pub fn new(stream: TcpStream) -> Self {
         RespHandler {
             stream,
-            buffer: BytesMut::with_capacity(4294967295),
+            buffer: BytesMut::with_capacity(4294967),
         }
     }
     pub async fn read_value(&mut self) -> Result<Option<Value>> {
