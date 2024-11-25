@@ -3,65 +3,73 @@ use crate::resp::RespHandler;
 use crate::resp::Value;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
+use std::sync::Arc;
 use std::collections::HashMap;
 use hex;
-use std::sync::Arc;
 use tokio::time;
 use std::fs::File;
 use std::io::{self, Read};
+use std::collections::VecDeque;
+use anyhow::Result;
 #[warn(unused_variables)]
 #[derive(Debug)]
 pub struct Slaves {
-    slave_addrs: Arc<Mutex<HashMap<String,String>>>,
-    slave_handler:Arc<Mutex<Vec<RespHandler>>>,
-    // command: String,
-    slave_offsets:Arc<Mutex<Vec<i32>>>,
+    slave_addrs: HashMap<String,String>,
+    slave_handler:Vec<RespHandler>,
+    slave_offsets:Vec<i64>,
+
+    command_hash: Vec<Value>,
+    slave_command_hash_index:Vec<i64>,
 }
 
 impl Slaves {
     pub fn new() -> Self {
         Slaves {
-            slave_addrs: Arc::new(Mutex::new(HashMap::new())),
-            slave_handler: Arc::new(Mutex::new(Vec::new())),
-            slave_offsets: Arc::new(Mutex::new(Vec::new())),
+            slave_addrs: HashMap::new(),
+            slave_handler: Vec::new(),
+            slave_offsets: Vec::new(),
+
+            command_hash: Vec::new(),
+            slave_command_hash_index: Vec::new(),
         }
     }
     //用于循环发送心跳包给slave
-    pub async fn r#loop(&self) {
-        loop {
-
-            //每个一秒钟处理一次
-            time::sleep(time::Duration::from_secs(1)).await;
+    pub async fn r#loop(&mut self) {
+        // println!("{:?},{:?},{:?}",self.command_hash,self.slave_command_hash_index,self.command_hash.len());
+        for (index, item) in self.slave_command_hash_index.iter_mut().enumerate() {
+            if *item<self.command_hash.len() as i64{
+                for (command_index,command) in self.command_hash.iter().enumerate().skip(*item as usize) {
+                    // self.slave_handler
+                    // 写入数据
+                    if let Some(handler) = self.slave_handler.get_mut(index) {
+                        println!("{:?}",command);
+                        handler.write_value(command.clone()).await;
+                    } else {
+                        println!("Index {} is out of bounds", index);
+                    }
+                    *item+=1;
+                    break;
+                }
+            }else{
+                //发送ack命令
+            }
         }
     }
 
-    pub async fn shake_hand_addr_info(&self, in_addr: String,listen_addr: String) {
-        let mut slave_addrs_lock = self.slave_addrs.lock().await;
-        
-        slave_addrs_lock.insert(in_addr,listen_addr);
+    pub async fn shake_hand_addr_info(&mut self, in_addr: String,listen_addr: String) {
         println!("New ShakeHand connection came");
+        self.slave_addrs.insert(in_addr,listen_addr);
     }
 
     pub async fn add_new_slave_handler(&mut self,mut handler:RespHandler){
         //写入数据进去
         let val=Slaves::get_empty_rdbfile();
         handler.write_value(val).await.unwrap();
-
-        // let slave_addrs_lock = self.slave_addrs.lock().await;
         
-        // match slave_addrs_lock.get(&in_addr){
-        //     Some(listen_addr) => {
-        //         let mut slave_handler_lock = self.slave_handler.lock().await;
-        //         let mut slave_offsets_lock = self.slave_offsets.lock().await;
-        //         let mut handler = RespHandler::new(TcpStream::connect(listen_addr).await.unwrap());
-        //         println!("Add new Slave{:?}", handler);
-        //         let val=Slaves::get_rdbfile("dasd".to_string());
-        //         handler.write_value(val).await.unwrap();
-        //         slave_handler_lock.push(handler);
-        //         slave_offsets_lock.push(0);
-        //     },
-        //     None => println!("No handler found for {}",in_addr),
-        // }
+        self.slave_handler.push(handler);
+        self.slave_offsets.push(0);
+
+        self.slave_command_hash_index.push(0);
     }
     pub fn get_empty_rdbfile()->Value{
         // 打开文件
@@ -73,6 +81,26 @@ impl Slaves {
 
         Value::RdbFile(buffer)
     }
+    pub async fn get_new_client_cmd(&mut self, cmd:Value)->Result<String>{
+        let command_string = match cmd.clone() {
+            Value::Array(a) => {
+                   let cmd_clone=a.first().unwrap().clone();
+                   match cmd_clone {
+                       Value::BulkString(Some(s)) => s.clone(),
+                       _ => return Err(anyhow::anyhow!("Unexpected command format")),
+                   }
+            },
+            _ => return Err(anyhow::anyhow!("Unexpected command format")),
+        };
+        match command_string.to_lowercase().as_str(){
+            "set"|"del"|"ping" =>{
+                self.command_hash.push(cmd.clone());
+            }
+            _ => {
 
-
+            }
+        }
+        //TODO: realize command logic
+        Ok("Yes, command".to_string())
+    }
 }

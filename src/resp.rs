@@ -65,7 +65,7 @@ impl RespHandler {
     pub fn new(stream: TcpStream) -> Self {
         RespHandler {
             stream,
-            buffer: BytesMut::with_capacity(512),
+            buffer: BytesMut::with_capacity(4294967295),
         }
     }
     pub async fn read_value(&mut self) -> Result<Option<Value>> {
@@ -73,6 +73,7 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
+        println!("{:?}",self.buffer.clone().split());
         let (v, _) = parse_message(self.buffer.split())?;
         Ok(Some(v))
     }
@@ -132,7 +133,7 @@ fn parse_bulk_string(buffer: BytesMut) -> Result<(Value, usize)> {
         return Err(anyhow::anyhow!("Invalid array format {:?}", buffer));
     };
     
-    if bulk_str_len >100 {
+    if bulk_str_len >60 {
         let temp_buf = &buffer[bytes_consumed..bytes_consumed+5];
         if String::from_utf8(temp_buf.to_vec()).unwrap() == "REDIS".to_string(){
             println!("rdbfile");

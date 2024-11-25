@@ -90,6 +90,7 @@ async fn main() {
             config.set_rcliinfo("role".to_string(), "slave".to_string());
         }
         config.load_rdb();
+        config.slave_loop().await;
     }
     // 设置 IP 地址和端口
     let ip = "127.0.0.1".to_string();
@@ -100,19 +101,20 @@ async fn main() {
 
     if !replicaof.is_empty() {
         let redisconfig_clone = Arc::clone(&redisconfig);
-        let _ = perform_replication_handshake(&replicaof,redisconfig_clone).await;
+        let db_clone = Arc::clone(&database);
+        let _ = perform_replication_handshake(&replicaof,db_clone,redisconfig_clone).await;
     }
 
     loop {
         let stream = listener.accept().await;
         match stream {
             Ok((stream, _)) => {
-                println!("accepted new connection");
-                let data_clone = Arc::clone(&database);
-                let redisconfig_clone = Arc::clone(&redisconfig);
-                tokio::spawn(async move {
-                    handle_conn(stream,data_clone,redisconfig_clone).await
-                    });
+                    println!("accepted new connection");
+                    let data_clone = Arc::clone(&database);
+                    let redisconfig_clone = Arc::clone(&redisconfig);
+                    tokio::spawn(async move {
+                        handle_conn(stream,data_clone,redisconfig_clone).await
+                        });
                 }
                 Err(e) => {
                     println!("error: {}", e);
@@ -134,7 +136,7 @@ async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig)
         // 提前声明变量
         let (command, args): (String, Vec<Value>);
         
-        let response = if let Some(v) = value {
+        let response = if let Some(v) = value.clone() {
             let extracted = extract_command(v).unwrap();
             command = extracted.0; // 初始化变量
             args = extracted.1; // 初始化变量
@@ -145,9 +147,16 @@ async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig)
         } else {
             break;
         };
-        println!("Sending value {:?}", response);
+        println!("{:?}",response);
         handler.write_value(response).await.unwrap();
-        
+        // 记录处理的命令
+        {
+            let mut redisconfig_lock=redisconfig.lock().await;
+            if let Some(v) = value.clone(){
+                redisconfig_lock.rcliinfo_track_cmd(v).await;
+            }
+        }
+
         //处理同步信息
         match command.to_lowercase().as_str() {
             "psync" => {
@@ -157,7 +166,6 @@ async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig)
             }
             _ => {}
         };
-       
     }
 }
 fn extract_command(value: Value) -> Result<(String, Vec<Value>)> {
@@ -178,10 +186,10 @@ fn unpack_bulk_str(value: Value) -> Result<String> {
     }
 }
 
-async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig) -> Result<()> {
+async fn perform_replication_handshake(replicaof: &str,db:DataStore,redisconfig: RedisConfig) -> Result<()> {
     // 尝试连接到主服务器
     let master_addr: SocketAddr = replicaof.parse().expect("Failed to parse master address");
-    let master_stream = TcpStream::connect(master_addr).await.expect("Failed to connect to master");
+    let master_stream = TcpStream::connect(master_addr.clone()).await.expect("Failed to connect to master");
 
     let mut handler = resp::RespHandler::new(master_stream);
 
@@ -229,7 +237,32 @@ async fn perform_replication_handshake(replicaof: &str,redisconfig: RedisConfig)
 
     //读取主机送来的信息
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
-    println!("Master response: {}", response);
+    //TODO: realize redis database storage
+    println!("Master response: {},{:?}", response,handler);
+
+    //TODO: realize command execution
+    loop {
+        let value = handler.read_value().await.unwrap();
+        println!("Got value {:?}", value);
+
+        // 提前声明变量
+        let (command, args): (String, Vec<Value>);
+        
+        let response = if let Some(v) = value {
+            let extracted = extract_command(v).unwrap();
+            command = extracted.0; // 初始化变量
+            args = extracted.1; // 初始化变量
+            
+            let mut db_lock = db.lock().await;
+            let respon = db_lock.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
+            println!("{:?}", respon);
+            respon
+        } else {
+            break;
+        };
+         
+        // TODO：Track command offset 
+    }
 
     Ok(())
 }

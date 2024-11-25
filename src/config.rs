@@ -6,18 +6,15 @@ use crate::slave_stream::Slaves;
 use std::time::{Duration, SystemTime};
 use regex::Regex;
 use crate::resp::RespHandler;
-
+use tokio::sync::Mutex;
+use tokio::sync::RwLock;
+use std::sync::Arc;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom,Cursor};
 use std::error::Error;
 use std::time::UNIX_EPOCH;
-
-#[derive(Debug)]
-struct DataObject {
-    key: String,
-    value: Value,
-}
+use tokio::time;
 
 #[derive(Debug)]
 #[warn(unused_variables)]
@@ -27,7 +24,7 @@ pub struct Config{
     metadata: HashMap<String, Value>,
     expirations: HashMap<String, SystemTime>,
     rcliinfo:RCliInfo,
-    slaves_handler:Slaves,
+    slaves_handler:Arc<RwLock<Slaves>>,
 }
 impl Config {
     pub fn new() -> Self {
@@ -37,17 +34,35 @@ impl Config {
             metadata: HashMap::new(),
             expirations:HashMap::new(),
             rcliinfo: RCliInfo::new(),
-            slaves_handler: Slaves::new(),//需要异步处理
+            slaves_handler: Arc::new(RwLock::new(Slaves::new())),//需要异步处理
         }
+    }
+    pub async fn slave_loop(&mut self){
+        let slaves_clone = self.slaves_handler.clone();
+        tokio::spawn(async move {
+            loop{
+                {
+                    //限定锁的作用域
+                    let mut slaves_read = slaves_clone.write().await;
+                    slaves_read.r#loop().await;
+                }
+                time::sleep(time::Duration::from_millis(50)).await;
+            }
+        });
+    }
+    pub async fn rcliinfo_track_cmd(&mut self, cmd:Value){
+        let mut slaves_write = self.slaves_handler.write().await;
+        let _ = slaves_write.get_new_client_cmd(cmd).await;
     }
     pub async fn new_slave_come(&mut self,syn_addr:String,listen_addr:String){
         //插入一个握手信息到slave里面
-        self.slaves_handler.shake_hand_addr_info(syn_addr,listen_addr).await;
-
+        let mut slaves_write = self.slaves_handler.write().await;
+        let _ = slaves_write.shake_hand_addr_info(syn_addr,listen_addr).await;
     }
     pub async fn add_slave_resphandler(&mut self,handler:RespHandler){
         //在slave信息里面实现连接
-        self.slaves_handler.add_new_slave_handler(handler).await;
+        let mut slaves_write = self.slaves_handler.write().await;
+        slaves_write.add_new_slave_handler(handler).await;
     }
     pub fn set_rcliinfo(&mut self,key:String,value:String){
         match key.as_str(){

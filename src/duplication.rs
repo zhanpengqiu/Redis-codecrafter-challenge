@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use crate::resp::Value;
-
+use anyhow::Result;
+use tokio::sync::Mutex;
+use std::sync::Arc;
 #[derive(Debug)]
 pub struct RCliInfo {
     replication_info: HashMap<String, Value>,
@@ -21,7 +23,7 @@ impl RCliInfo {
         replication_info.insert("repl_backlog_first_byte_offset".to_string(), Value::Integer(0));
         replication_info.insert("repl_backlog_histlen".to_string(), Value::Integer(0));
 
-        RCliInfo { replication_info }
+        RCliInfo { replication_info}
     }
 
     /// 获取复制信息，返回一个符合 Redis 协议的批量字符串
@@ -57,4 +59,5 @@ impl RCliInfo {
             None => Value::BulkString(None),
         }
     }
+
 }

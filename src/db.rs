@@ -9,14 +9,14 @@ use crate::config::Config;
 type RedisConfig = Arc<Mutex<Config>>;
 pub struct RedisDb {
     data: HashMap<Value, Value>,
-    expirations: HashMap<Value, SystemTime>,
+    // expirations: HashMap<Value, SystemTime>,
 }
 
 impl RedisDb {
     pub fn new() -> Self {
         RedisDb {
             data: HashMap::new(),
-            expirations: HashMap::new(),
+            // expirations: HashMap::new(),
         }
     }
 
