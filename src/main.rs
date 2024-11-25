@@ -241,28 +241,29 @@ async fn perform_replication_handshake(replicaof: &str,db:DataStore,redisconfig:
     println!("Master response: {},{:?}", response,handler);
 
     //TODO: realize command execution
-    loop {
-        let value = handler.read_value().await.unwrap();
-        println!("Got value {:?}", value);
-
-        // 提前声明变量
-        let (command, args): (String, Vec<Value>);
-        
-        let response = if let Some(v) = value {
-            let extracted = extract_command(v).unwrap();
-            command = extracted.0; // 初始化变量
-            args = extracted.1; // 初始化变量
+    tokio::spawn(async move {
+        loop {
+            let value = handler.read_value().await.unwrap();
+            println!("Got value {:?}", value);
+    
+            // 提前声明变量
+            let (command, args): (String, Vec<Value>);
             
-            let mut db_lock = db.lock().await;
-            let respon = db_lock.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
-            println!("{:?}", respon);
-            respon
-        } else {
-            break;
+            let response = if let Some(v) = value {
+                let extracted = extract_command(v).unwrap();
+                command = extracted.0; // 初始化变量
+                args = extracted.1; // 初始化变量
+                
+                let mut db_lock = db.lock().await;
+                let respon = db_lock.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
+                println!("{:?}", respon);
+                respon
+            } else {
+                break;
+            };
         };
-         
         // TODO：Track command offset 
-    }
+    });
 
     Ok(())
 }
