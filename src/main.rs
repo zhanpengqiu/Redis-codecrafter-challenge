@@ -130,6 +130,7 @@ async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig)
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
     loop {
+        time::sleep(time::Duration::from_millis(25)).await;
         let value = handler.read_value().await.unwrap();
         println!("Got value {:?}", value);
 
