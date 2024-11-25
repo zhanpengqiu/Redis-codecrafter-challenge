@@ -88,7 +88,7 @@ impl RespHandler {
                 self.stream.write_all(&buffer).await?;
             },
             _=> {
-                self.stream.write(value.serialize().as_bytes()).await?;
+                self.stream.write_all(value.serialize().as_bytes()).await?;
             }
         };
         
