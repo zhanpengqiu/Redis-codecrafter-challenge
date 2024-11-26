@@ -53,22 +53,45 @@ impl Stream {
     pub fn xrange(&self, start_id: Value, end_id: Value) -> Result<Vec<Value>> {
         let mut result = Vec::new();
 
-        for (id, entry) in &self.data {
-            let mut entry_array = Vec::new();
-            let id_no_tail = remove_trailing(&id);
-            // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
-            if id_no_tail >= start_id && id_no_tail <= end_id {
-                entry_array.push(id.clone());
-                let mut array = Vec::new();
-                for item in entry.iter() {
-                    let (key, value) =item;
-                    array.push(key.clone());
-                    array.push(value.clone());
+        // 检查 start_id 和 end_id 是否包含 "-"
+        if !contains_hyphen(&start_id) || !contains_hyphen(&end_id) {
+            for (id, entry) in &self.data {
+                let mut entry_array = Vec::new();
+                let id_no_tail = remove_trailing(&id);
+                // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
+                
+                if id_no_tail >= start_id && id_no_tail <= end_id {
+                    entry_array.push(id.clone());
+                    let mut array = Vec::new();
+                    for item in entry.iter() {
+                        let (key, value) =item;
+                        array.push(key.clone());
+                        array.push(value.clone());
+                    }
+                    entry_array.push(Value::Array(array));
+                    result.push(Value::Array(entry_array));
                 }
-                entry_array.push(Value::Array(array));
-                result.push(Value::Array(entry_array));
             }
         }
+        else{
+            for (id, entry) in &self.data {
+                let mut entry_array = Vec::new();
+                // let id_no_tail = remove_trailing(&id);
+                // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
+                if *id >= start_id && *id <= end_id {
+                    entry_array.push(id.clone());
+                    let mut array = Vec::new();
+                    for item in entry.iter() {
+                        let (key, value) =item;
+                        array.push(key.clone());
+                        array.push(value.clone());
+                    }
+                    entry_array.push(Value::Array(array));
+                    result.push(Value::Array(entry_array));
+                }
+            }
+        }
+
 
         Ok(result)
     }
@@ -148,5 +171,11 @@ fn remove_trailing(id: &Value) -> Value {
             Value::BulkString(Some(re.replace_all(s, "").to_string()))
         }
         _ => {Value::BulkString(Some("".to_string()))},
+    }
+}
+fn contains_hyphen(id: &Value) -> bool {
+    match id {
+        Value::BulkString(Some(ref s)) => s.contains('-'),
+        _ => false,
     }
 }
