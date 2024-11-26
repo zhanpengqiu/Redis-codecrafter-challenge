@@ -254,18 +254,32 @@ impl RedisDb {
                     return Value::Error("Wrong number of arguments for TYPE".to_string());
                 }
                 let value = args.remove(0);
-                let value_str=match value{
-                    Value::BulkString(Some(s))=> s,
-                    _ => return Value::Error("Invalid value for TYPE".to_string()),
-                };
         
                 let mut config_lock=config.lock().await;
-                let res = match config_lock.get(value_str){
-                    Value::BulkString(Some(_))=> "string".to_string(),
-                    Value::BulkString(None)=> "none".to_string(),
-                    _ => "".to_string(),
-                };
+                let res = config_lock.get_type(value);
                 Value::SimpleString(res)
+            }
+            "xadd" => {
+                if args.len() < 2 {
+                    return Value::Error("Wrong number of arguments for XADD".to_string());
+                }
+                // 增加key到stream当中
+                let stream_key = args.remove(0);
+                let stream_value = args.remove(0);
+
+                let mut hashmap = HashMap::new();
+                while args.len()%2 !=0{
+                    let stream_content_key = args.remove(0);
+                    let stream_content_value = args.remove(0);
+                    hashmap.insert(stream_content_key, stream_content_value);
+                    // 放入Stream当中
+                }
+                let mut config_lock=config.lock().await;
+                match config_lock.xadd((stream_key, stream_value), hashmap).await{
+                    Ok(res) => res,
+                    Err(e) => Value::Error(format!("{}",e)),
+                }
+
             }
             "del" => {
                 if args.len() == 1 {

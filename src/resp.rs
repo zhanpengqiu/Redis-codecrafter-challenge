@@ -5,7 +5,7 @@ use anyhow::Result;
 use std::fmt;
 // 参数用于输入到database中
 
-#[derive(Clone, Debug,Eq, Hash, PartialEq)]
+#[derive(Clone, Debug,Eq, Hash, PartialEq,PartialOrd)]
 #[warn(dead_code)]
 #[warn(unused_variables)]
 pub enum Value {
@@ -73,7 +73,13 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
-        let (v, index) = parse_message(self.buffer.split())?;
+        // TODO:循环读取直到读取到CRLF
+        // 这里要是实现 握手的重要步骤,同一个连接发来的消息可能会很多,因此需要用一个数组区接受信息
+        // while self.buffer.split().len()!=0 as usize {
+
+        // }
+
+        let (v, _) = parse_message(self.buffer.split())?;
         Ok(Some(v)) 
     }
     pub async fn write_value(&mut self, value: Value) -> Result<()> {

@@ -15,6 +15,8 @@ use std::io::{self, Read, Seek, SeekFrom,Cursor};
 use std::error::Error;
 use std::time::UNIX_EPOCH;
 use tokio::time;
+use crate::stream::Stream;
+use anyhow::Result;
 
 #[derive(Debug)]
 #[warn(unused_variables)]
@@ -25,6 +27,8 @@ pub struct Config{
     expirations: HashMap<String, SystemTime>,
     rcliinfo:RCliInfo,
     slaves_handler:Arc<RwLock<Slaves>>,
+    stream:Stream,
+    key_type:HashMap<Value,String>,
 }
 impl Config {
     pub fn new() -> Self {
@@ -35,6 +39,33 @@ impl Config {
             expirations:HashMap::new(),
             rcliinfo: RCliInfo::new(),
             slaves_handler: Arc::new(RwLock::new(Slaves::new())),//需要异步处理
+            stream: Stream::new(),
+            key_type: HashMap::new(),
+        }
+    }
+    pub fn get_type(&mut self,key:Value)-> String{
+        match self.key_type.get(&key) {
+            Some(v) => format!("{:?}", v),
+            None => {
+                let key_str = match key {
+                    Value::BulkString(Some(ref s)) => s.clone(),
+                    _ => return format!("none"),
+                };
+
+                match self.get(key_str) {
+                    Value::BulkString(Some(_)) => format!("string"),
+                    _ => format!("none"),
+                }
+            }
+        }
+    }
+    pub async fn xadd(&mut self, (name_key, name_value): (Value, Value), entry: HashMap<Value, Value>)->Result<Value>{
+        match self.stream.insert_stream_item((name_key.clone(), name_value),entry){
+            Ok(v) => {
+                self.key_type.insert(name_key,"stream".to_string());
+                Ok(v)
+            }
+            Err(e) => Err(e),
         }
     }
     pub async fn slave_loop(&mut self){
@@ -136,8 +167,6 @@ impl Config {
             Some(value) => value.clone(),
             None => Value::BulkString(None),
         }
-        // self.rdbfile_content.get(key)
-
     }
     pub fn set(&mut self, key: String, value: Value) -> Value {
         self.rdbfile_content.insert(key, value);
