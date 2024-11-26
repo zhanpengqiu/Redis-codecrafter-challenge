@@ -22,14 +22,18 @@ impl Stream {
 
     pub fn insert_stream_item(&mut self, (name_key, name_value): (Value, Value), entry: HashMap<Value, Value>) -> Result<Value> {
         let id = self.generate_id(name_value.clone());
+        println!("{}", id);
         if self.data.is_empty() {
-            if id <= Value::SimpleString("0-0".to_string()) {
-                return Err(anyhow!("The ID specified in XADD must be greater than 0-0"));
+            if  id <= Value::BulkString(Some("0-0".to_string())) {
+                return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
             }
         } else {
+            if id <= Value::BulkString(Some("0-0".to_string())) {
+                return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
+            }
             let last_id = self.last_id.as_ref().unwrap().clone();
             if !self.is_valid_id(&id, &last_id) {
-                return Err(anyhow!("The ID specified in XADD is equal or smaller than the target stream top item"));
+                return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
             }
         }
 
