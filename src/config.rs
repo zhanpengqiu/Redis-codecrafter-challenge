@@ -45,7 +45,7 @@ impl Config {
     }
     pub fn get_type(&mut self,key:Value)-> String{
         match self.key_type.get(&key) {
-            Some(v) => format!("{:?}", v),
+            Some(v) => format!("{}", v),
             None => {
                 let key_str = match key {
                     Value::BulkString(Some(ref s)) => s.clone(),
