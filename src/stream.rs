@@ -33,7 +33,7 @@ impl Stream {
             }
             let last_id = self.last_id.as_ref().unwrap().clone();
             if !self.is_valid_id(&id, &last_id) {
-                return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
+                return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item")); 
             }
         }
 
