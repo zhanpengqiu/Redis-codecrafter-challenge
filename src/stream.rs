@@ -78,7 +78,7 @@ impl Stream {
                 let mut entry_array = Vec::new();
                 // let id_no_tail = remove_trailing(&id);
                 // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
-                if *id >= start_id && *id <= end_id {
+                if *id >= start_id && *id <= end_id { 
                     entry_array.push(id.clone());
                     let mut array = Vec::new();
                     for item in entry.iter() {
