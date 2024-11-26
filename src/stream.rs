@@ -51,49 +51,56 @@ impl Stream {
     }
 
     pub fn xrange(&self, start_id: Value, end_id: Value) -> Result<Vec<Value>> {
-        let mut result = Vec::new();
+        let mut entries = Vec::new();
 
         // 检查 start_id 和 end_id 是否包含 "-"
         if !contains_hyphen(&start_id) || !contains_hyphen(&end_id) {
             for (id, entry) in &self.data {
                 let mut entry_array = Vec::new();
                 let id_no_tail = remove_trailing(&id);
-                // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
                 
                 if id_no_tail >= start_id && id_no_tail <= end_id {
                     entry_array.push(id.clone());
                     let mut array = Vec::new();
                     for item in entry.iter() {
-                        let (key, value) =item;
+                        let (key, value) = item;
                         array.push(key.clone());
                         array.push(value.clone());
                     }
                     entry_array.push(Value::Array(array));
-                    result.push(Value::Array(entry_array));
+                    entries.push(entry_array);
                 }
             }
-        }
-        else{
+        } else {
             for (id, entry) in &self.data {
                 let mut entry_array = Vec::new();
-                // let id_no_tail = remove_trailing(&id);
-                // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
-                if *id >= start_id && *id <= end_id { 
+                
+                if *id >= start_id && *id <= end_id {
                     entry_array.push(id.clone());
                     let mut array = Vec::new();
                     for item in entry.iter() {
-                        let (key, value) =item;
+                        let (key, value) = item;
                         array.push(key.clone());
                         array.push(value.clone());
                     }
                     entry_array.push(Value::Array(array));
-                    result.push(Value::Array(entry_array));
+                    entries.push(entry_array);
                 }
             }
         }
 
+        // 对 entries 进行排序
+        entries.sort_by(|a, b| {
+            let a_id = a.get(0).unwrap().clone();
+            let b_id = b.get(0).unwrap().clone();
+            compare_ids(a_id, b_id)
+        });
+
+        // 将排序后的 entries 转换为 result
+        let result: Vec<Value> = entries.into_iter().map(|e| Value::Array(e)).collect();
 
         Ok(result)
+
     }
 
 
@@ -177,5 +184,17 @@ fn contains_hyphen(id: &Value) -> bool {
     match id {
         Value::BulkString(Some(ref s)) => s.contains('-'),
         _ => false,
+    }
+}
+// 辅助函数：比较两个 ID
+fn compare_ids(a: Value, b: Value) -> std::cmp::Ordering {
+    match (a, b) {
+        (Value::BulkString(Some(a_str)), Value::BulkString(Some(b_str))) => {
+            let (a_timestamp, a_sequence) = parse_id(&Value::BulkString(Some(a_str)));
+            let (b_timestamp, b_sequence) = parse_id(&Value::BulkString(Some(b_str)));
+
+            a_timestamp.cmp(&b_timestamp).then_with(|| a_sequence.cmp(&b_sequence))
+        }
+        _ => std::cmp::Ordering::Equal, // 如果类型不匹配，默认相等
     }
 }
