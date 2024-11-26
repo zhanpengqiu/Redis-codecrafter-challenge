@@ -3,6 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::resp::Value;
 use anyhow::anyhow;
 use anyhow::Result;
+use regex::Regex;
 
 #[derive(Debug, Clone)]
 pub struct Stream {
@@ -48,6 +49,30 @@ impl Stream {
         // 返回成功的 Result
         Ok(id)
     }
+
+    pub fn xrange(&self, start_id: Value, end_id: Value) -> Result<Vec<Value>> {
+        let mut result = Vec::new();
+
+        for (id, entry) in &self.data {
+            let mut entry_array = Vec::new();
+            let id_no_tail = remove_trailing(&id);
+            // println!("{:?},{:?},{:?},{:?},{:?}",id,id_no_tail,entry,start_id,end_id);
+            if id_no_tail >= start_id && id_no_tail <= end_id {
+                entry_array.push(id.clone());
+                let mut array = Vec::new();
+                for item in entry.iter() {
+                    let (key, value) =item;
+                    array.push(key.clone());
+                    array.push(value.clone());
+                }
+                entry_array.push(Value::Array(array));
+                result.push(Value::Array(entry_array));
+            }
+        }
+
+        Ok(result)
+    }
+
 
     fn generate_id(&self, id: Value) -> Value {
         match id {
@@ -112,5 +137,16 @@ fn parse_id(id: &Value) -> (u128, u64) {
             (timestamp, sequence)
         }
         _ => panic!("Invalid ID type"),
+    }
+}
+
+fn remove_trailing(id: &Value) -> Value {
+    match id {
+        Value::BulkString(Some(ref s)) => {
+            let re = Regex::new(r"-[0-9]+$").unwrap();
+            println!("{:?}",s.trim_end_matches("-").to_string());
+            Value::BulkString(Some(re.replace_all(s, "").to_string()))
+        }
+        _ => {Value::BulkString(Some("".to_string()))},
     }
 }

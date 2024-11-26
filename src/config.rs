@@ -68,6 +68,12 @@ impl Config {
             Err(e) => Err(e),
         }
     }
+    pub async fn xrange(&self, strat:Value,end:Value) -> Result<Value>{
+        match self.stream.xrange(strat,end){
+            Ok(v) => Ok(Value::Array(v)),
+            Err(e) => Err(e),
+        }
+    }
     pub async fn slave_loop(&mut self){
         let slaves_clone = self.slaves_handler.clone();
         tokio::spawn(async move {

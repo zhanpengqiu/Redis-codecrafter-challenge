@@ -268,14 +268,30 @@ impl RedisDb {
                 let stream_value = args.remove(0);
 
                 let mut hashmap = HashMap::new();
-                while args.len()%2 !=0{
+                while args.len()!=0 && args.len()%2 ==0{
                     let stream_content_key = args.remove(0);
                     let stream_content_value = args.remove(0);
                     hashmap.insert(stream_content_key, stream_content_value);
                     // 放入Stream当中
                 }
+                println!("123123{:?}",hashmap);
                 let mut config_lock=config.lock().await;
                 match config_lock.xadd((stream_key, stream_value), hashmap).await{
+                    Ok(res) => res,
+                    Err(e) => Value::Error(format!("{}",e)),
+                }
+
+            }
+            "xrange" => {
+                if args.len() < 2 {
+                    return Value::Error("Wrong number of arguments for XADD".to_string());
+                }
+                // 增加key到stream当中
+                let stream_key = args.remove(0);
+                let start = args.remove(0);
+                let end = args.remove(0);
+                let mut config_lock=config.lock().await;
+                match config_lock.xrange(start, end).await{
                     Ok(res) => res,
                     Err(e) => Value::Error(format!("{}",e)),
                 }
