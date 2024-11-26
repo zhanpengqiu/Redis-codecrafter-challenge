@@ -77,7 +77,12 @@ impl Stream {
     }
 
     fn generate_unique_id(&self, mut base_id: String) -> Value {
-        let mut sequence = 0;
+        let mut sequence = if base_id=="0".to_string(){
+            1
+        }else{
+            0
+        };
+        // let mut sequence = 0;
         loop {
             let id = format!("{}-{}", base_id, sequence);
             if !self.data.contains_key(&Value::BulkString(Some(id.clone()))) {
