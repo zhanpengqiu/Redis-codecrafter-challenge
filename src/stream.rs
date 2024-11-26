@@ -22,7 +22,6 @@ impl Stream {
 
     pub fn insert_stream_item(&mut self, (name_key, name_value): (Value, Value), entry: HashMap<Value, Value>) -> Result<Value> {
         let id = self.generate_id(name_value.clone());
-        println!("{}", id);
         if self.data.is_empty() {
             if id <= Value::SimpleString("0-0".to_string()) {
                 return Err(anyhow!("Err The ID specified in XADD must be greater than 0-0"));
@@ -64,11 +63,11 @@ impl Stream {
             }
             Value::BulkString(Some(ref s)) => {
                 // 显式指定 id
-                Value::SimpleString(s.clone())
+                Value::BulkString(Some(s.clone()))
             }
             _ => {
                 // 处理其他类型的 Value
-                Value::SimpleString(id.to_string())
+                Value::BulkString(Some(id.to_string()))
             }
         }
     }
@@ -77,8 +76,8 @@ impl Stream {
         let mut sequence = 0;
         loop {
             let id = format!("{}-{}", base_id, sequence);
-            if !self.data.contains_key(&Value::SimpleString(id.clone())) {
-                return Value::SimpleString(id);
+            if !self.data.contains_key(&Value::BulkString(Some(id.clone()))) {
+                return Value::BulkString(Some(id));
             }
             sequence += 1;
         }
@@ -94,7 +93,7 @@ impl Stream {
 
 fn parse_id(id: &Value) -> (u128, u64) {
     match id {
-        Value::SimpleString(ref s) => {
+        Value::BulkString(Some(ref s)) => {
             let parts: Vec<&str> = s.split('-').collect();
             if parts.len() != 2 {
                 panic!("Invalid ID format: {}", s);
