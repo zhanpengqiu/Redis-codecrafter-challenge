@@ -266,104 +266,95 @@ impl RedisDb {
                 }
                 let cmd = args.remove(0);
                 match cmd {
-                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("streams") => {
-                        if args.len() % 2 !=0 {
-                            return Value::Error("Wrong number of arguments for XREAD".to_string());
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("block") => {
+                        // 这里实现block 的循环检查
+                        // 检查是否有新的item进来,进来了之后检查是不是当前想要的
+                        let num_str = match args.remove(0){
+                            Value::BulkString(Some(ref num_str)) => num_str.clone(),
+                            _ => return Value::Error("Err block num".to_string())
+                        };
+                        let _ = args.remove(0);
+
+                        //在这里,阻塞读取
+                        let start_time = Instant::now();
+                        let interval = Duration::from_millis(100);
+                        let block_num:u64= match num_str.parse::<i32>(){
+                            Ok(num) => {
+                                if num == 0 {
+                                    u64::MAX
+                                }else{
+                                    num as u64
+                                }
+                            }
+                            Err(e) => return Value::Error("Err block num".to_string())
+                        };
+
+
+                        let total_duration = Duration::from_millis(block_num as u64);
+                        // 执行一次函数,告诉他我有block过来了,
+                        let stream_key_num = args.len()/2;
+                        let mut stream_key_vec = Vec::new();
+                        let mut stream_name_vec = Vec::new();
+                        for _ in 0..stream_key_num {
+                            stream_key_vec.push(args.remove(0));
                         }
-                        // 检查有没有block选项,有的话暂停等待
-                        let first_cmd = args.first().unwrap();
-                        match first_cmd{
-                            Value::BulkString(Some(ref first_cmd)) if first_cmd.eq_ignore_ascii_case("block")=>{
-                                // 这里实现block 的循环检查
-                                // 检查是否有新的item进来,进来了之后检查是不是当前想要的
-                                let _ = args.remove(0);
-                                let num_str = match args.remove(0){
-                                    Value::BulkString(Some(ref num_str)) => num_str.clone(),
-                                    _ => return Value::Error("Err block num".to_string())
-                                };
+                        for _ in 0..stream_key_num {
+                            stream_name_vec.push(args.remove(0));
+                        }
+                        let mut stream_key_name_vec = Vec::new();
+                        for i in 0..stream_key_num {
+                            stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
+                        }
 
-                                //在这里,阻塞读取
-                                let start_time = Instant::now();
-                                let interval = Duration::from_millis(100);
-                                let block_num:u64= match num_str.parse::<i32>(){
-                                    Ok(num) => {
-                                        if num == 0 {
-                                            u64::MAX
-                                        }else{
-                                            num as u64
-                                        }
-                                    }
-                                    Err(e) => return Value::Error("Err block num".to_string())
-                                };
-
-
-                                let total_duration = Duration::from_millis(block_num as u64);
-                                // 执行一次函数,告诉他我有block过来了,
-                                let stream_key_num = args.len()/2;
-                                let mut stream_key_vec = Vec::new();
-                                let mut stream_name_vec = Vec::new();
-                                for _ in 0..stream_key_num {
-                                    stream_key_vec.push(args.remove(0));
-                                }
-                                for _ in 0..stream_key_num {
-                                    stream_name_vec.push(args.remove(0));
-                                }
-                                let mut stream_key_name_vec = Vec::new();
-                                for i in 0..stream_key_num {
-                                    stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
-                                }
-
-                                while start_time.elapsed() < total_duration {
-                                    println!("当前时间: {:?}", start_time.elapsed());
-                                    //检查是否有新的项目进来并且项目是匹配的,没有的话继续执行,有的话打破循环
-                                    {
-                                        println!("{:?}",stream_key_name_vec.len());
-                                        
-                                        let mut config_lock=config.lock().await;
-                                        let res_val = match config_lock.xread(stream_key_name_vec.clone()).await{
-                                            Ok(res) => res,
-                                            Err(e) => Value::Error(format!("{}",e)),
-                                        };
-                                        match res_val.clone(){
-                                            Value::Array(ref v) => {
-                                                if !v.is_empty() {
-                                                    return res_val
-                                                }
-                                            }
-                                            _=>{}
-                                        }
-                                    }
-                                    // 睡眠100ms
-                                    thread::sleep(interval);
-                                    
-                                }
-                                //执行一次函数,告诉他我的block走了
-                            }
-                            _ => {
-                                let stream_key_num = args.len()/2;
-                                let mut stream_key_vec = Vec::new();
-                                let mut stream_name_vec = Vec::new();
-                                for _ in 0..stream_key_num {
-                                    stream_key_vec.push(args.remove(0));
-                                }
-                                for _ in 0..stream_key_num {
-                                    stream_name_vec.push(args.remove(0));
-                                }
-                                let mut stream_key_name_vec = Vec::new();
-                                for i in 0..stream_key_num {
-                                    stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
-                                }
-        
+                        while start_time.elapsed() < total_duration {
+                            println!("当前时间: {:?}", start_time.elapsed());
+                            //检查是否有新的项目进来并且项目是匹配的,没有的话继续执行,有的话打破循环
+                            {
+                                println!("{:?}",stream_key_name_vec.len());
+                                
                                 let mut config_lock=config.lock().await;
-                                match config_lock.xread(stream_key_name_vec).await{
-                                    Ok(res) => return res,
-                                    Err(e) => return Value::Error(format!("{}",e)),
+                                let res_val = match config_lock.xread(stream_key_name_vec.clone()).await{
+                                    Ok(res) => res,
+                                    Err(e) => Value::Error(format!("{}",e)),
+                                };
+                                match res_val.clone(){
+                                    Value::Array(ref v) => {
+                                        if !v.is_empty() {
+                                            return res_val
+                                        }
+                                    }
+                                    _=>{}
                                 }
                             }
+                            // 睡眠100ms
+                            thread::sleep(interval);
+                            
+                        }
+                        //执行一次函数,告诉他我的block走了
+                    }
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("streams") => {
+                        let stream_key_num = args.len()/2;
+                        let mut stream_key_vec = Vec::new();
+                        let mut stream_name_vec = Vec::new();
+                        for _ in 0..stream_key_num {
+                            stream_key_vec.push(args.remove(0));
+                        }
+                        for _ in 0..stream_key_num {
+                            stream_name_vec.push(args.remove(0));
+                        }
+                        let mut stream_key_name_vec = Vec::new();
+                        for i in 0..stream_key_num {
+                            stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
+                        }
+
+                        let mut config_lock=config.lock().await;
+                        match config_lock.xread(stream_key_name_vec).await{
+                            Ok(res) => return res,
+                            Err(e) => return Value::Error(format!("{}",e)),
                         }
                     }
                     _ => return Value::Error("Unknown XREAD command".to_string()),
-                };
+                }
                 Value::SimpleString("OK".to_string())
 
             }
