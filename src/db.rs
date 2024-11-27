@@ -7,52 +7,14 @@ use crate::resp::Value;
 use std::time::{Duration, SystemTime};
 use crate::config::Config;
 type RedisConfig = Arc<Mutex<Config>>;
+
+#[derive(Clone, Debug,Eq, Hash, PartialEq,PartialOrd)]
 pub struct RedisDb {
-    data: HashMap<Value, Value>,
-    // expirations: HashMap<Value, SystemTime>,
 }
 
 impl RedisDb {
     pub fn new() -> Self {
         RedisDb {
-            data: HashMap::new(),
-            // expirations: HashMap::new(),
-        }
-    }
-
-    pub fn delete(&mut self, key: Value) -> Value {
-        if self.data.remove(&key).is_some() {
-            Value::Integer(1)
-        } else {
-            Value::Integer(0)
-        }
-    }
-
-    pub fn exists(&self, key: Value) -> Value {
-        if self.data.contains_key(&key) {
-            Value::Integer(1)
-        } else {
-            Value::Integer(0)
-        }
-    }
-
-    pub fn increment(&mut self, key: Value) -> Value {
-        match self.data.get_mut(&key) {
-            Some(Value::Integer(ref mut i)) => {
-                *i += 1;
-                Value::Integer(*i)
-            }
-            _ => Value::Error("Key does not exist or is not an integer".to_string()),
-        }
-    }
-
-    pub fn decrement(&mut self, key: Value) -> Value {
-        match self.data.get_mut(&key) {
-            Some(Value::Integer(ref mut i)) => {
-                *i -= 1;
-                Value::Integer(*i)
-            }
-            _ => Value::Error("Key does not exist or is not an integer".to_string()),
         }
     }
 
@@ -331,34 +293,6 @@ impl RedisDb {
                 };
                 Value::SimpleString("OK".to_string())
 
-            }
-            "del" => {
-                if args.len() == 1 {
-                    self.delete(args.first().unwrap().clone())
-                } else {
-                    Value::Error("Wrong number of arguments for DEL".to_string())
-                }
-            }
-            "exists" => {
-                if args.len() == 1 {
-                    self.exists(args.first().unwrap().clone())
-                } else {
-                    Value::Error("Wrong number of arguments for EXISTS".to_string())
-                }
-            }
-            "incr" => {
-                if args.len() == 1 {
-                    self.increment(args.first().unwrap().clone())
-                } else {
-                    Value::Error("Wrong number of arguments for INCR".to_string())
-                }
-            }
-            "decr" => {
-                if args.len() == 1 {
-                    self.decrement(args.first().unwrap().clone())
-                } else {
-                    Value::Error("Wrong number of arguments for DECR".to_string())
-                }
             }
             "ping" => Value::SimpleString("PONG".to_string()),
             "echo" => {

@@ -18,7 +18,7 @@ use tokio::sync::Mutex;
 use std::sync::{Arc};
 use std::env;
 
-type DataStore = Arc<Mutex<RedisDb>>;
+type DataStore = RedisDb;
 type RedisConfig = Arc<Mutex<Config>>;
 
 #[tokio::main]
@@ -27,7 +27,7 @@ async fn main() {
     let args: Vec<String> = env::args().collect();
 
     // 设置数据存储库和基础设置库
-    let database = Arc::new(Mutex::new(RedisDb::new()));
+    let database = RedisDb::new();
     let redisconfig = Arc::new(Mutex::new(Config::new()));
 
     // 默认值
@@ -102,19 +102,17 @@ async fn main() {
 
     if !replicaof.is_empty() {
         let redisconfig_clone = Arc::clone(&redisconfig);
-        let db_clone = Arc::clone(&database);
-        let _ = perform_replication_handshake(&replicaof,db_clone,redisconfig_clone).await;
+        let _ = perform_replication_handshake(&replicaof,database.clone(),redisconfig_clone).await;
     }
 
     loop {
         let stream = listener.accept().await;
         match stream {
             Ok((stream, _)) => {
-                    println!("accepted new connection");
-                    let data_clone = Arc::clone(&database);
                     let redisconfig_clone = Arc::clone(&redisconfig);
                     tokio::spawn(async move {
-                        handle_conn(stream,data_clone,redisconfig_clone).await
+                        let db = DataStore::new();
+                        handle_conn(stream,db,redisconfig_clone).await
                         });
                 }
                 Err(e) => {
@@ -125,7 +123,7 @@ async fn main() {
     }
 }
 
-async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig) {
+async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisConfig) {
     let addr = stream.peer_addr().unwrap();
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
@@ -141,8 +139,7 @@ async fn handle_conn(stream: TcpStream, db: DataStore, redisconfig: RedisConfig)
             command = extracted.0; // 初始化变量
             args = extracted.1; // 初始化变量
             
-            let mut db_lock = db.lock().await;
-            let respon = db_lock.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
+            let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
             respon
         } else {
             break;
@@ -186,7 +183,7 @@ fn unpack_bulk_str(value: Value) -> Result<String> {
     }
 }
 
-async fn perform_replication_handshake(replicaof: &str,db:DataStore,redisconfig: RedisConfig) -> Result<()> {
+async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,redisconfig: RedisConfig) -> Result<()> {
     // 尝试连接到主服务器
     let master_addr: SocketAddr = replicaof.parse().expect("Failed to parse master address");
     let master_stream = TcpStream::connect(master_addr.clone()).await.expect("Failed to connect to master");
@@ -219,6 +216,12 @@ async fn perform_replication_handshake(replicaof: &str,db:DataStore,redisconfig:
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
 
+    // Stage3: sent PSYNC cmd to master
+    // 1.The first argument is the replication ID of the master
+    //      Since this is the first time the replica is connecting to the master, the replication ID will be (a question mark)?
+    // 2.The second argument is the offset of the master
+    //      Since this is the first time the replica is connecting to the master, the offset will be -1
+
     // TODO: code needs to be refactored
     handler.write_value(Value::Array(vec![
         Value::BulkString(Some("PSYNC".to_string())),
@@ -248,8 +251,7 @@ async fn perform_replication_handshake(replicaof: &str,db:DataStore,redisconfig:
                 command = extracted.0; // 初始化变量
                 args = extracted.1; // 初始化变量
                 
-                let mut db_lock = db.lock().await;
-                let respon = db_lock.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
+                let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
                 println!("{:?}", respon);
                 respon
             } else {
