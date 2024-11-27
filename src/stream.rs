@@ -21,7 +21,7 @@ impl Stream {
 
     pub fn insert_stream_item(&mut self, (name_key, name_value): (Value, Value), entry: HashMap<Value, Value>) -> Result<Value> {
         let id = self.generate_id(name_key.clone(),name_value.clone());
-        println!("{}", id);
+        // println!("{}", id);
 
         if id <= Value::BulkString(Some("0-0".to_string())) {
             return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
@@ -108,7 +108,7 @@ impl Stream {
             }
         }
     
-        println!("{:?}", results);
+        // println!("{:?}", results);
     
         Ok(results)
     }
@@ -276,7 +276,7 @@ fn remove_trailing(id: &Value) -> Value {
     match id {
         Value::BulkString(Some(ref s)) => {
             let re = Regex::new(r"-[0-9]+$").unwrap();
-            println!("{:?}",s.trim_end_matches("-").to_string());
+            // println!("{:?}",s.trim_end_matches("-").to_string());
             Value::BulkString(Some(re.replace_all(s, "").to_string()))
         }
         _ => {Value::BulkString(Some("".to_string()))},
