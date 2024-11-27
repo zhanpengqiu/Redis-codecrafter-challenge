@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime};
 use crate::config::Config;
 use std::time::{Instant};
 type RedisConfig = Arc<Mutex<Config>>;
+use tokio::time::sleep;
 
 #[derive(Clone, Debug,Eq, Hash, PartialEq,PartialOrd)]
 pub struct RedisDb {
@@ -326,8 +327,8 @@ impl RedisDb {
                                     _=>{}
                                 }
                             }
-                            // 睡眠100ms
-                            thread::sleep(interval);
+                            // 异步睡眠100ms
+                            sleep(interval).await;
                             
                         }
                         //执行一次函数,告诉他我的block走了
