@@ -7,55 +7,79 @@ use regex::Regex;
 
 #[derive(Debug, Clone)]
 pub struct Stream {
-    id: HashMap<Value, Value>,
-    data: HashMap<Value, HashMap<Value, Value>>,
+    stream_items:HashMap<Value,HashMap<Value,HashMap<Value,Value>>>,
     last_id: Option<Value>, // 用于存储最后一个条目的 ID
 }
 
 impl Stream {
     pub fn new() -> Self {
         Stream {
-            id: HashMap::new(),
-            data: HashMap::new(),
+            stream_items: HashMap::new(),
             last_id: None,
         }
     }
 
     pub fn insert_stream_item(&mut self, (name_key, name_value): (Value, Value), entry: HashMap<Value, Value>) -> Result<Value> {
-        let id = self.generate_id(name_value.clone());
+        let id = self.generate_id(name_key.clone(),name_value.clone());
         println!("{}", id);
-        if self.data.is_empty() {
-            if  id <= Value::BulkString(Some("0-0".to_string())) {
-                return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
-            }
-        } else {
-            if id <= Value::BulkString(Some("0-0".to_string())) {
-                return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
-            }
-            let last_id = self.last_id.as_ref().unwrap().clone();
-            if !self.is_valid_id(&id, &last_id) {
-                return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item")); 
-            }
+
+        if id <= Value::BulkString(Some("0-0".to_string())) {
+            return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
+        }
+        let last_id = self.last_id.as_ref().unwrap_or(&Value::BulkString(Some("0-0".to_string()))).clone();
+        if !self.is_valid_id(&id, &last_id) {
+            return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item")); 
         }
 
-        if self.data.contains_key(&id) {
+        let stream_name_hashmap = self.stream_items.entry(name_key.clone()).or_insert_with(HashMap::new);
+
+        if stream_name_hashmap.contains_key(&id) {
             return Err(anyhow!("ID {:?} already exists", id.clone()));
         }
 
-        self.id.insert(id.clone(), name_key.clone());
-        self.data.insert(id.clone(), entry);
+        stream_name_hashmap.insert(id.clone(), entry.clone());
+
         self.last_id = Some(id.clone()); // 更新最后一个条目的 ID
 
-        // 返回成功的 Result
         Ok(id)
     }
+    pub fn xread(&mut self, streams: Vec<(Value, Value)>) -> Result<Vec<Value>> {
+        let mut results = Vec::new();
+        
+        for (stream_name,stream_key) in streams.iter() {
+            let stream_name_hashmap = self.stream_items.entry(stream_name.clone()).or_insert_with(HashMap::new);
+            let mut entries=Vec::new();
+            entries.push(stream_name.clone());
+            for (id, entry) in stream_name_hashmap {
+                let mut entry_array = Vec::new();
+                if *id > *stream_key {
+                    entry_array.push(id.clone());
+                    let mut array = Vec::new();
+                    for item in entry.iter() {
+                        let (key, value) = item;
+                        array.push(key.clone());
+                        array.push(value.clone());
+                    }
+                    entry_array.push(Value::Array(array));
+                    entries.push(Value::Array(entry_array));
+                    results.push(Value::Array(entries));
+                    break;
+                }
+            }
+        }
+        println!("{:?}",results);
 
-    pub fn xrange(&self, start_id: Value, end_id: Value) -> Result<Vec<Value>> {
+        Ok(results)
+    }
+
+    pub fn xrange(&mut self, name_key:Value,start_id: Value, end_id: Value) -> Result<Vec<Value>> {
         let mut entries = Vec::new();
+
+        let stream_name_hashmap = self.stream_items.entry(name_key.clone()).or_insert_with(HashMap::new);
 
         // 检查 start_id 和 end_id 是否包含 "-"
         if !contains_hyphen(&start_id) && !contains_hyphen(&end_id) {
-            for (id, entry) in &self.data {
+            for (id, entry) in stream_name_hashmap {
                 let mut entry_array = Vec::new();
                 let id_no_tail = remove_trailing(&id);
                 
@@ -72,7 +96,7 @@ impl Stream {
                 }
             }
         } else if !contains_hyphen(&start_id) && contains_plus(&end_id){
-            for (id, entry) in &self.data {
+            for (id, entry) in stream_name_hashmap {
                 let mut entry_array = Vec::new();
                 let id_no_tail = remove_trailing(&id);
                 
@@ -90,7 +114,7 @@ impl Stream {
             }
         }
         else if contains_hyphen(&start_id) && contains_plus(&end_id) {
-            for (id, entry) in &self.data {
+            for (id, entry) in stream_name_hashmap {
                 let mut entry_array = Vec::new();
                 let id_no_tail = remove_trailing(&id);
                 
@@ -108,7 +132,7 @@ impl Stream {
             }
         }
         else {
-            for (id, entry) in &self.data {
+            for (id, entry) in stream_name_hashmap {
                 let mut entry_array = Vec::new();
                 
                 if *id >= start_id && *id <= end_id {
@@ -140,7 +164,7 @@ impl Stream {
     }
 
 
-    fn generate_id(&self, id: Value) -> Value {
+    fn generate_id(&mut self, name_key:Value,id: Value) -> Value {
         match id {
             Value::BulkString(Some(ref s)) if s == "*" => {
                 // 自动生成时间和序列号
@@ -149,12 +173,12 @@ impl Stream {
                     .expect("Time went backwards")
                     .as_millis();
                 let sequence = 0;
-                self.generate_unique_id(format!("{}", timestamp))
+                self.generate_unique_id(name_key,format!("{}", timestamp))
             }
             Value::BulkString(Some(ref s)) if s.ends_with('*') => {
                 // 自动生成序列号
                 let timestamp = s.trim_end_matches('*').trim_end_matches('-');
-                self.generate_unique_id(format!("{}", timestamp))
+                self.generate_unique_id(name_key,format!("{}", timestamp))
             }
             Value::BulkString(Some(ref s)) => {
                 // 显式指定 id
@@ -167,7 +191,8 @@ impl Stream {
         }
     }
 
-    fn generate_unique_id(&self, mut base_id: String) -> Value {
+    fn generate_unique_id(&mut self, name_key:Value,mut base_id: String) -> Value {
+        let stream_name_hashmap = self.stream_items.entry(name_key.clone()).or_insert_with(HashMap::new);
         let mut sequence = if base_id=="0".to_string(){
             1
         }else{
@@ -176,7 +201,7 @@ impl Stream {
         // let mut sequence = 0;
         loop {
             let id = format!("{}-{}", base_id, sequence);
-            if !self.data.contains_key(&Value::BulkString(Some(id.clone()))) {
+            if !stream_name_hashmap.contains_key(&Value::BulkString(Some(id.clone()))) {
                 return Value::BulkString(Some(id));
             }
             sequence += 1;

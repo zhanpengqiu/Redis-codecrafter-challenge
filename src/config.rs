@@ -68,8 +68,14 @@ impl Config {
             Err(e) => Err(e),
         }
     }
-    pub async fn xrange(&self, strat:Value,end:Value) -> Result<Value>{
-        match self.stream.xrange(strat,end){
+    pub async fn xrange(&mut self, stream_name:Value,strat:Value,end:Value) -> Result<Value>{
+        match self.stream.xrange(stream_name,strat,end){
+            Ok(v) => Ok(Value::Array(v)),
+            Err(e) => Err(e),
+        }
+    }
+    pub async fn xread(&mut self, streams: Vec<(Value, Value)>) -> Result<Value>{
+        match self.stream.xread(streams){
             Ok(v) => Ok(Value::Array(v)),
             Err(e) => Err(e),
         }

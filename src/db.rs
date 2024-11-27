@@ -274,7 +274,6 @@ impl RedisDb {
                     hashmap.insert(stream_content_key, stream_content_value);
                     // 放入Stream当中
                 }
-                println!("123123{:?}",hashmap);
                 let mut config_lock=config.lock().await;
                 match config_lock.xadd((stream_key, stream_value), hashmap).await{
                     Ok(res) => res,
@@ -291,10 +290,46 @@ impl RedisDb {
                 let start = args.remove(0);
                 let end = args.remove(0);
                 let mut config_lock=config.lock().await;
-                match config_lock.xrange(start, end).await{
+                match config_lock.xrange(stream_key,start, end).await{
                     Ok(res) => res,
                     Err(e) => Value::Error(format!("{}",e)),
                 }
+
+            }
+            "xread" => {
+                //实现xread的逻辑
+                if args.len() < 1 {
+                    return Value::Error("Wrong number of arguments for XADD".to_string());
+                }
+                let cmd = args.remove(0);
+                match cmd {
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("streams") => {
+                        if args.len() % 2 !=0 {
+                            return Value::Error("Wrong number of arguments for XREAD".to_string());
+                        }
+                        let stream_key_num = args.len()/2;
+                        let mut stream_key_vec = Vec::new();
+                        let mut stream_name_vec = Vec::new();
+                        for _ in 0..stream_key_num {
+                            stream_key_vec.push(args.remove(0));
+                        }
+                        for _ in 0..stream_key_num {
+                            stream_name_vec.push(args.remove(0));
+                        }
+                        let mut stream_key_name_vec = Vec::new();
+                        for i in 0..stream_key_num {
+                            stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
+                        }
+
+                        let mut config_lock=config.lock().await;
+                        match config_lock.xread(stream_key_name_vec).await{
+                            Ok(res) => return res,
+                            Err(e) => return Value::Error(format!("{}",e)),
+                        }
+                    }
+                    _ => return Value::Error("Unknown XREAD command".to_string()),
+                };
+                Value::SimpleString("OK".to_string())
 
             }
             "del" => {
