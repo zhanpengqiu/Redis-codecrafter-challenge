@@ -74,6 +74,12 @@ impl Config {
             Err(e) => Err(e),
         }
     }
+    pub fn xread_latest(&self, streams: Value) -> Result<Value> {
+        match self.stream.xread_latest(streams){
+            Ok(v) => Ok(v),
+            Err(e) => Err(e),
+        }
+    }
     pub async fn xread(&mut self, streams: Vec<(Value, Value)>) -> Result<Value>{
         match self.stream.xread(streams){
             Ok(v) => Ok(Value::Array(v)),

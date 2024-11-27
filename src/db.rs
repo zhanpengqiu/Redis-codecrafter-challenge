@@ -274,7 +274,7 @@ impl RedisDb {
                             Value::BulkString(Some(ref num_str)) => num_str.clone(),
                             _ => return Value::Error("Err block num".to_string())
                         };
-                        let _ = args.remove(0);
+                        let _ = args.remove(0); //这个得到的参数是streams
 
                         //在这里,阻塞读取
                         let start_time = Instant::now();
@@ -292,27 +292,38 @@ impl RedisDb {
 
 
                         let total_duration = Duration::from_millis(block_num as u64);
-                        // 执行一次函数,告诉他我有block过来了,
+                        
                         let stream_key_num = args.len()/2;
                         let mut stream_key_vec = Vec::new();
                         let mut stream_name_vec = Vec::new();
                         for _ in 0..stream_key_num {
                             stream_key_vec.push(args.remove(0));
                         }
-                        for _ in 0..stream_key_num {
+                        for _ in 0..stream_key_num { 
                             stream_name_vec.push(args.remove(0));
                         }
                         let mut stream_key_name_vec = Vec::new();
                         for i in 0..stream_key_num {
-                            stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
+                            //在这里如果碰到stream_name_vec[i]是$的情况,那么就获取目前这个stream_key最大的一个项目
+                            match stream_name_vec[i].clone(){
+                                Value::BulkString(Some(ref s)) if s.eq_ignore_ascii_case("$") => {
+                                    let mut config_lock=config.lock().await;
+                                    let stream_name = match config_lock.xread_latest(stream_key_vec[i].clone()){
+                                        Ok(res) => res,
+                                        Err(e) => Value::Error(format!("{}",e)),
+                                    };
+                                    stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name));
+                                }
+                                _ => {
+                                    stream_key_name_vec.push((stream_key_vec[i].clone(), stream_name_vec[i].clone()));
+                                }
+                            }
+                            
                         }
 
                         while start_time.elapsed() < total_duration {
-                            println!("当前时间: {:?}", start_time.elapsed());
                             //检查是否有新的项目进来并且项目是匹配的,没有的话继续执行,有的话打破循环
-                            {
-                                println!("{:?}",stream_key_name_vec.len());
-                                
+                            {                     
                                 let mut config_lock=config.lock().await;
                                 let res_val = match config_lock.xread(stream_key_name_vec.clone()).await{
                                     Ok(res) => res,
@@ -329,11 +340,9 @@ impl RedisDb {
                             }
                             // 异步睡眠100ms
                             sleep(interval).await;
-                            
                         }
                         // 什么数据也没有就直接返回空的字符串
                         return Value::BulkString(None);
-                        //执行一次函数,告诉他我的block走了
                     }
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("streams") => {
                         let stream_key_num = args.len()/2;
@@ -358,7 +367,6 @@ impl RedisDb {
                     }
                     _ => return Value::Error("Unknown XREAD command".to_string()),
                 }
-                Value::SimpleString("OK".to_string())
 
             }
             "ping" => Value::SimpleString("PONG".to_string()),

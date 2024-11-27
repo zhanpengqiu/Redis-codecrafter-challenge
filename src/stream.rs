@@ -44,6 +44,23 @@ impl Stream {
 
         Ok(id)
     }
+
+    /// 获取每个给定流中的最新条目的 ID，如果流为空，则返回 "0-0"
+    pub fn xread_latest(&self, streams: Value) -> Result<Value> {
+
+        let latest_id = self.stream_items
+            .get(&streams)
+            .and_then(|stream| {
+                // 寻找最大的 ID
+                stream.keys()
+                    .max_by(|a, b| compare_ids(a.clone().clone(), b.clone().clone()))
+                    .cloned()
+            })
+            .unwrap_or_else(|| Value::BulkString(Some("0-0".to_string())));
+
+        Ok(latest_id)
+    }
+
     pub fn xread(&mut self, streams: Vec<(Value, Value)>) -> Result<Vec<Value>> {
         let mut stream_entries: HashMap<Value, Vec<Vec<Value>>> = HashMap::new();
         
