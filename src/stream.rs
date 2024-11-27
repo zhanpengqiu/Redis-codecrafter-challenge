@@ -45,13 +45,13 @@ impl Stream {
         Ok(id)
     }
     pub fn xread(&mut self, streams: Vec<(Value, Value)>) -> Result<Vec<Value>> {
-        let mut results = Vec::new();
         let mut stream_entries: HashMap<Value, Vec<Vec<Value>>> = HashMap::new();
-
-        for (stream_name, stream_key) in streams.iter() {
+        
+        // 收集所有流的数据
+        for (stream_name, stream_key) in &streams {
             if let Some(stream_name_hashmap) = self.stream_items.get(stream_name) {
                 let mut min_id = None;
-
+                
                 for (id, entry) in stream_name_hashmap.iter() {
                     if *id > *stream_key {
                         if min_id.is_none() || *id < min_id.clone().unwrap() {
@@ -59,7 +59,7 @@ impl Stream {
                         }
                     }
                 }
-
+                
                 if let Some(min_id) = min_id {
                     if let Some(entry) = stream_name_hashmap.get(&min_id) {
                         let entry_array = vec![
@@ -74,21 +74,25 @@ impl Stream {
                             .entry(stream_name.clone())
                             .or_insert_with(Vec::new)
                             .push(entry_array);
-                    } 
+                    }
                 }
             }
         }
-
-        for (stream_name, entries) in stream_entries {
-            let stream_result = vec![
-                stream_name,
-                Value::Array(entries.into_iter().map(|e| Value::Array(e)).collect()),
-            ];
-            results.push(Value::Array(stream_result));
+        
+        // 根据输入的顺序构建结果
+        let mut results = Vec::new();
+        for (stream_name, _) in &streams {
+            if let Some(entries) = stream_entries.get(stream_name) {
+                let stream_result = vec![
+                    stream_name.clone(),
+                    Value::Array(entries.iter().cloned().map(|e| Value::Array(e)).collect()),
+                ];
+                results.push(Value::Array(stream_result));
+            }
         }
-
+    
         println!("{:?}", results);
-
+    
         Ok(results)
     }
 
