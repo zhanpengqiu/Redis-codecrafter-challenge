@@ -277,7 +277,7 @@ impl RedisDb {
 
                         //在这里,阻塞读取
                         let start_time = Instant::now();
-                        let interval = Duration::from_millis(100);
+                        let interval = Duration::from_millis(20);
                         let block_num:u64= match num_str.parse::<i32>(){
                             Ok(num) => {
                                 if num == 0 {
