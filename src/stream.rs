@@ -8,14 +8,14 @@ use regex::Regex;
 #[derive(Debug, Clone)]
 pub struct Stream {
     stream_items:HashMap<Value,HashMap<Value,HashMap<Value,Value>>>,
-    last_id: Option<Value>, // 用于存储最后一个条目的 ID
+    last_ids: HashMap<Value, Value>, // 用于存储每个 name_key 的最后一个条目的 ID
 }
 
 impl Stream {
     pub fn new() -> Self {
         Stream {
             stream_items: HashMap::new(),
-            last_id: None,
+            last_ids: HashMap::new(),
         }
     }
 
@@ -26,9 +26,10 @@ impl Stream {
         if id <= Value::BulkString(Some("0-0".to_string())) {
             return Err(anyhow!("ERR The ID specified in XADD must be greater than 0-0"));
         }
-        let last_id = self.last_id.as_ref().unwrap_or(&Value::BulkString(Some("0-0".to_string()))).clone();
+        let last_id = self.last_ids.get(&name_key).cloned().unwrap_or_else(|| Value::BulkString(Some("0-0".to_string())));
+
         if !self.is_valid_id(&id, &last_id) {
-            return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item")); 
+            return Err(anyhow!("ERR The ID specified in XADD is equal or smaller than the target stream top item"));
         }
 
         let stream_name_hashmap = self.stream_items.entry(name_key.clone()).or_insert_with(HashMap::new);
@@ -39,35 +40,54 @@ impl Stream {
 
         stream_name_hashmap.insert(id.clone(), entry.clone());
 
-        self.last_id = Some(id.clone()); // 更新最后一个条目的 ID
+        self.last_ids.insert(name_key.clone(), id.clone()); // 更新最后一个条目的 I
 
         Ok(id)
     }
     pub fn xread(&mut self, streams: Vec<(Value, Value)>) -> Result<Vec<Value>> {
         let mut results = Vec::new();
-        
-        for (stream_name,stream_key) in streams.iter() {
-            let stream_name_hashmap = self.stream_items.entry(stream_name.clone()).or_insert_with(HashMap::new);
-            let mut entries=Vec::new();
-            entries.push(stream_name.clone());
-            for (id, entry) in stream_name_hashmap {
-                let mut entry_array = Vec::new();
-                if *id > *stream_key {
-                    entry_array.push(id.clone());
-                    let mut array = Vec::new();
-                    for item in entry.iter() {
-                        let (key, value) = item;
-                        array.push(key.clone());
-                        array.push(value.clone());
+        let mut stream_entries: HashMap<Value, Vec<Vec<Value>>> = HashMap::new();
+
+        for (stream_name, stream_key) in streams.iter() {
+            if let Some(stream_name_hashmap) = self.stream_items.get(stream_name) {
+                let mut min_id = None;
+
+                for (id, entry) in stream_name_hashmap.iter() {
+                    if *id > *stream_key {
+                        if min_id.is_none() || *id < min_id.clone().unwrap() {
+                            min_id = Some(id.clone());
+                        }
                     }
-                    entry_array.push(Value::Array(array));
-                    entries.push(Value::Array(entry_array));
-                    results.push(Value::Array(entries));
-                    break;
+                }
+
+                if let Some(min_id) = min_id {
+                    if let Some(entry) = stream_name_hashmap.get(&min_id) {
+                        let entry_array = vec![
+                            min_id.clone(),
+                            Value::Array(
+                                entry.iter()
+                                    .flat_map(|(k, v)| vec![k.clone(), v.clone()])
+                                    .collect(),
+                            ),
+                        ];
+                        stream_entries
+                            .entry(stream_name.clone())
+                            .or_insert_with(Vec::new)
+                            .push(entry_array);
+                    }
                 }
             }
         }
-        println!("{:?}",results);
+
+        for (stream_name, entries) in stream_entries {
+            let stream_result = vec![
+                stream_name,
+                Value::Array(entries.into_iter().map(|e| Value::Array(e)).collect()),
+            ];
+            results.push(Value::Array(stream_result));
+        }
+
+        println!("{:?}", results);
 
         Ok(results)
     }
