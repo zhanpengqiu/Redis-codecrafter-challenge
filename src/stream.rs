@@ -54,7 +54,7 @@ impl Stream {
         let mut entries = Vec::new();
 
         // 检查 start_id 和 end_id 是否包含 "-"
-        if !contains_hyphen(&start_id) || !contains_hyphen(&end_id) {
+        if !contains_hyphen(&start_id) && !contains_hyphen(&end_id) {
             for (id, entry) in &self.data {
                 let mut entry_array = Vec::new();
                 let id_no_tail = remove_trailing(&id);
@@ -71,7 +71,43 @@ impl Stream {
                     entries.push(entry_array);
                 }
             }
-        } else {
+        } else if !contains_hyphen(&start_id) && contains_plus(&end_id){
+            for (id, entry) in &self.data {
+                let mut entry_array = Vec::new();
+                let id_no_tail = remove_trailing(&id);
+                
+                if id_no_tail >= start_id && id_no_tail <= end_id {
+                    entry_array.push(id.clone());
+                    let mut array = Vec::new();
+                    for item in entry.iter() {
+                        let (key, value) = item;
+                        array.push(key.clone());
+                        array.push(value.clone());
+                    }
+                    entry_array.push(Value::Array(array));
+                    entries.push(entry_array);
+                }
+            }
+        }
+        else if contains_hyphen(&start_id) && contains_plus(&end_id) {
+            for (id, entry) in &self.data {
+                let mut entry_array = Vec::new();
+                let id_no_tail = remove_trailing(&id);
+                
+                if *id >= start_id{
+                    entry_array.push(id.clone());
+                    let mut array = Vec::new();
+                    for item in entry.iter() {
+                        let (key, value) = item;
+                        array.push(key.clone());
+                        array.push(value.clone());
+                    }
+                    entry_array.push(Value::Array(array));
+                    entries.push(entry_array);
+                }
+            }
+        }
+        else {
             for (id, entry) in &self.data {
                 let mut entry_array = Vec::new();
                 
@@ -183,6 +219,12 @@ fn remove_trailing(id: &Value) -> Value {
 fn contains_hyphen(id: &Value) -> bool {
     match id {
         Value::BulkString(Some(ref s)) => s.contains('-'),
+        _ => false,
+    }
+}
+fn contains_plus(id: &Value) -> bool {
+    match id {
+        Value::BulkString(Some(ref s)) => s.contains('+'),
         _ => false,
     }
 }
