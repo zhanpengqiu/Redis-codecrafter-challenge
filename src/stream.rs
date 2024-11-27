@@ -74,7 +74,7 @@ impl Stream {
                             .entry(stream_name.clone())
                             .or_insert_with(Vec::new)
                             .push(entry_array);
-                    }
+                    } 
                 }
             }
         }
