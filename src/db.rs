@@ -331,6 +331,8 @@ impl RedisDb {
                             sleep(interval).await;
                             
                         }
+                        // 什么数据也没有就直接返回空的字符串
+                        return Value::BulkString(None);
                         //执行一次函数,告诉他我的block走了
                     }
                     Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("streams") => {
