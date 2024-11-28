@@ -418,6 +418,9 @@ impl RedisDb {
                     Value::Error("Wrong number of arguments for ECHO".to_string())
                 }
             }
+            "rdbfile"=>{
+                Value::SimpleString("Get a RedisFile from master");
+            }
             _ => Value::Error(format!("Unknown command: {}", command)),
         }
     }
