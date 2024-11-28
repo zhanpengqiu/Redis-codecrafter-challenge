@@ -284,10 +284,10 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     // time::sleep(time::Duration::from_millis(20)).await;
 
     //读取主机送来的信息
-    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
-    //TODO: realize redis database storage
-    println!("Master response: {:?},{:?}", response,handler);
-    time::sleep(time::Duration::from_millis(20)).await;
+    // let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
+    // //TODO: realize redis database storage
+    // println!("Master response: {:?},{:?}", response,handler);
+    // time::sleep(time::Duration::from_millis(20)).await;
 
     //TODO: realize command execution
     tokio::spawn(async move {
