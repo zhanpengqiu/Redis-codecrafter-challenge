@@ -190,16 +190,6 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                 break;
             }
         }
-        // let response = if let Some(v) = value.clone() {
-        //     let extracted = extract_command(v).unwrap();
-        //     command = extracted.0; // 初始化变量
-        //     args = extracted.1; // 初始化变量
-            
-        //     let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
-        //     respon
-        // } else {
-        //     break;
-        // };
         println!("{:?}",response);
         handler.write_value(response).await.unwrap();
         // 记录处理的命令
