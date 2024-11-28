@@ -287,7 +287,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     tokio::spawn(async move {
         loop {
             let values = handler.slave_read_value().await.unwrap();
-            println!("Got value {:?}", values);
+            println!("Got values {:?}", values);
     
             // 提前声明变量
             let (mut command, mut args): (String, Vec<Value>);
