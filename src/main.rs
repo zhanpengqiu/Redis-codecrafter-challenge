@@ -128,7 +128,7 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
     let mut multi_cmd_flag = false;
-    let mut multi_cmd_vec = Vec::new();
+    let mut multi_cmd_vec: Vec<(String, Vec<Value>)> = Vec::new();
     loop {
         let value = handler.read_value().await.unwrap();
         println!("Got value {:?}", value);
@@ -151,10 +151,13 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                 "exec" => {
                     if multi_cmd_flag{
                         multi_cmd_flag=false;
-                        for item in multi_cmd_vec.iter() {
-                            println!("{:?}", item);
+                        let mut multi_cmd_response_vec = Vec::new();
+                        for  (cmd, cmd_args) in &multi_cmd_vec {
+                            response = db.handle_command(cmd.to_string(), cmd_args.clone(), redisconfig.clone(),addr).await;
+                            multi_cmd_response_vec.push(response);
                         }
-                        response = Value::Array(Vec::new());
+                        multi_cmd_vec.clear();
+                        response = Value::Array(multi_cmd_response_vec);
                     }else{
                         response = Value::Error("ERR EXEC without MULTI".to_string());
                     }
