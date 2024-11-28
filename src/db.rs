@@ -108,7 +108,12 @@ impl RedisDb {
                     _ => return Value::Error("Invalid key for GET".to_string()),
                 };
                 let mut config_lock=config.lock().await;
-                config_lock.get(key_str)
+                let value = config_lock.get(key_str);
+                match value{
+                    Value::BulkString(Some(v)) => Value::BulkString(Some(v)),
+                    Value::Integer(v) => Value::BulkString(Some(v.to_string())),
+                    _ => Value::BulkString(None),
+                }
             }
             "config" => {
                 //增加config get的命令
