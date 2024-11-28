@@ -127,23 +127,67 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
     let addr = stream.peer_addr().unwrap();
     let mut handler = resp::RespHandler::new(stream);
     println!("Starting read loop");
+    let mut multi_cmd_flag = false;
+    let mut multi_cmd_vec = Vec::new();
     loop {
         let value = handler.read_value().await.unwrap();
         println!("Got value {:?}", value);
 
         // 提前声明变量
         let (command, args): (String, Vec<Value>);
-        
-        let response = if let Some(v) = value.clone() {
+        let mut response = Value::BulkString(None);
+
+        if let Some(v) = value.clone() {
             let extracted = extract_command(v).unwrap();
             command = extracted.0; // 初始化变量
             args = extracted.1; // 初始化变量
+
+            //检查command是不是multi
+            match command.to_lowercase().as_str(){
+                "multi" => {
+                    multi_cmd_flag=true;
+                    response = Value::SimpleString("OK".to_string());
+                }
+                "exec" => {
+                    if multi_cmd_flag{
+                        multi_cmd_flag=false;
+                        for item in multi_cmd_vec.iter() {
+                            println!("{:?}", item);
+                        }
+                        response = Value::Array(Vec::new());
+                    }else{
+                        response = Value::Error("ERR EXEC without MULTI".to_string());
+                    }
+                    
+                }
+                _ => {
+                    if multi_cmd_flag{
+                        multi_cmd_vec.push((command.clone(),args.clone()));
+                        response = Value::SimpleString("queue".to_string());
+                    }else{
+                        let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
+                        response=respon
+                    }
+                }
+            }
+        }
+        else{
+            if multi_cmd_flag{
+                continue;
+            }else{
+                break;
+            }
+        }
+        // let response = if let Some(v) = value.clone() {
+        //     let extracted = extract_command(v).unwrap();
+        //     command = extracted.0; // 初始化变量
+        //     args = extracted.1; // 初始化变量
             
-            let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
-            respon
-        } else {
-            break;
-        };
+        //     let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
+        //     respon
+        // } else {
+        //     break;
+        // };
         println!("{:?}",response);
         handler.write_value(response).await.unwrap();
         // 记录处理的命令
