@@ -390,7 +390,7 @@ impl RedisDb {
                 {
                     let mut config_lock=config.lock().await;
                     let value = config_lock.get(key_str.clone());
-                    match value {
+                    match value { 
                         Value::Integer(n) => {
                             let incr_value = Value::Integer(n + 1);
                             config_lock.incr(key_str.clone(),incr_value.clone())
