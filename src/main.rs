@@ -254,7 +254,6 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     }
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(20)).await;
 
     handler.write_value(Value::Array(vec![
         Value::BulkString(Some("REPLCONF".to_string())),
@@ -264,7 +263,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
 
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(20)).await;
+
 
     // Stage3: sent PSYNC cmd to master
     // 1.The first argument is the replication ID of the master
