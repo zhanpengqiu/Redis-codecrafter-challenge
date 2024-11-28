@@ -163,6 +163,15 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                     }
                     
                 }
+                "discard" => {
+                    if multi_cmd_flag{
+                        multi_cmd_flag=false;
+                        multi_cmd_vec.clear();
+                        response = Value::SimpleString("OK".to_string());
+                    }else{
+                        response = Value::Error("ERR DISCARD without MULTI".to_string());
+                    }
+                }
                 _ => {
                     if multi_cmd_flag{
                         multi_cmd_vec.push((command.clone(),args.clone()));
