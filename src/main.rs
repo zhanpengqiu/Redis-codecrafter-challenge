@@ -163,7 +163,7 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                 _ => {
                     if multi_cmd_flag{
                         multi_cmd_vec.push((command.clone(),args.clone()));
-                        response = Value::SimpleString("queue".to_string());
+                        response = Value::SimpleString("QUEUED".to_string());
                     }else{
                         let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
                         response=respon
