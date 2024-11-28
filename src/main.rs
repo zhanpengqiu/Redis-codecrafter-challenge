@@ -241,7 +241,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     handler.write_value(Value::Array(vec![Value::BulkString(Some("PING".to_string()))])).await?;
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(30)).await;
+    time::sleep(time::Duration::from_millis(100)).await;
 
     // Stage2: The replica sends twice to the master (This stageREPLCONF)
     {
@@ -254,7 +254,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     }
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(30)).await;
+    time::sleep(time::Duration::from_millis(100)).await;
 
     handler.write_value(Value::Array(vec![
         Value::BulkString(Some("REPLCONF".to_string())),
@@ -264,7 +264,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
 
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(30)).await;
+    time::sleep(time::Duration::from_millis(100)).await;
 
     // Stage3: sent PSYNC cmd to master
     // 1.The first argument is the replication ID of the master
@@ -281,13 +281,13 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(30)).await;
+    time::sleep(time::Duration::from_millis(100)).await;
 
     //读取主机送来的信息
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     //TODO: realize redis database storage
     println!("Master response: {:?},{:?}", response,handler);
-    time::sleep(time::Duration::from_millis(30)).await;
+    time::sleep(time::Duration::from_millis(100)).await;
 
     //TODO: realize command execution
     tokio::spawn(async move {
