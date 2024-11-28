@@ -78,8 +78,11 @@ impl RespHandler {
         // while self.buffer.split().len()!=0 as usize {
 
         // }
-
-        let (v, _) = parse_message(self.buffer.split())?;
+        println!("{:?}",self.buffer);
+        let (v, bytes_consumed) = parse_message(self.buffer.split())?;
+        self.buffer=self.buffer.split_to(bytes_consumed);
+        println!("{:?}",self.buffer);
+        
         Ok(Some(v)) 
     }
     pub async fn write_value(&mut self, value: Value) -> Result<()> {
