@@ -73,14 +73,24 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
-        // TODO:循环读取直到读取到CRLF
-        // 这里要是实现 握手的重要步骤,同一个连接发来的消息可能会很多,因此需要用一个数组区接受信息
-        // while self.buffer.split().len()!=0 as usize {
-
-        // }
         let (v, bytes_consumed) = parse_message(self.buffer.split())?;
         
         Ok(Some(v)) 
+    }
+
+    pub async fn slave_read_value(&mut self) -> Result<Option<Vec<Value>>> {
+        let bytes_read = self.stream.read_buf(&mut self.buffer).await?;
+        if bytes_read == 0 {
+            return Ok(None);
+        }
+
+        let mut buf = Vec::new();
+        while self.buffer.len()!=0{
+            let (v, bytes_consumed) = parse_message(self.buffer.split())?;
+            buf.push(v);
+        }
+        
+        Ok(Some(buf)) 
     }
     pub async fn write_value(&mut self, value: Value) -> Result<()> {
         match value{

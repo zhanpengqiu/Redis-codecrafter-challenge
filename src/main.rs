@@ -286,23 +286,42 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     //TODO: realize command execution
     tokio::spawn(async move {
         loop {
-            let value = handler.read_value().await.unwrap();
-            println!("Got value {:?}", value);
+            let values = handler.slave_read_value().await.unwrap();
+            println!("Got value {:?}", values);
     
             // 提前声明变量
-            let (command, args): (String, Vec<Value>);
+            let (mut command, mut args): (String, Vec<Value>);
             
-            let response = if let Some(v) = value {
-                let extracted = extract_command(v).unwrap();
-                command = extracted.0; // 初始化变量
-                args = extracted.1; // 初始化变量
-                
-                let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
-                println!("{:?}", respon);
-                respon
+            if let Some(value) = values {
+                for v in value.iter() {
+                    let extracted = extract_command(v.clone()).unwrap();
+                    command = extracted.0; // 初始化变量
+                    args = extracted.1; // 初始化变量
+                    
+                    let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
+                    println!("{:?}", respon);
+                }
+
             } else {
                 break;
             };
+            // let value = handler.read_value().await.unwrap();
+            // println!("Got value {:?}", value);
+    
+            // // 提前声明变量
+            // let (command, args): (String, Vec<Value>);
+            
+            // let response = if let Some(v) = value {
+            //     let extracted = extract_command(v).unwrap();
+            //     command = extracted.0; // 初始化变量
+            //     args = extracted.1; // 初始化变量
+                
+            //     let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
+            //     println!("{:?}", respon);
+            //     respon
+            // } else {
+            //     break;
+            // };
         };
         // TODO：Track command offset 
     });
