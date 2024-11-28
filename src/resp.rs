@@ -78,10 +78,7 @@ impl RespHandler {
         // while self.buffer.split().len()!=0 as usize {
 
         // }
-        println!("{:?}",self.buffer);
         let (v, bytes_consumed) = parse_message(self.buffer.split())?;
-        self.buffer=self.buffer.split_to(bytes_consumed-1);
-        println!("{:?}",self.buffer);
         
         Ok(Some(v)) 
     }
