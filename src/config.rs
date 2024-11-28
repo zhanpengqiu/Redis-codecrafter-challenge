@@ -121,7 +121,7 @@ impl Config {
             },
         }
     }
-    pub fn insert(&mut self, name: String, value: String){
+    pub fn insert(&mut self, name: String, value: String){ 
         self.rdbfile.insert(name, Value::BulkString(Some(value)));
     }
     pub fn get_config(&self, key:String)->String{
