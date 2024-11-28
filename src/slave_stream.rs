@@ -11,6 +11,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::collections::VecDeque;
 use anyhow::Result;
+use tokio::time;
 #[warn(unused_variables)]
 #[derive(Debug)]
 pub struct Slaves {
@@ -64,6 +65,7 @@ impl Slaves {
     pub async fn add_new_slave_handler(&mut self,mut handler:RespHandler){
         //写入数据进去
         let val=Slaves::get_empty_rdbfile();
+        time::sleep(time::Duration::from_millis(50)).await;
         handler.write_value(val).await.unwrap();
         
         self.slave_handler.push(handler);
