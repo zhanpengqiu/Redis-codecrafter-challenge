@@ -281,7 +281,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     
     println!("Master response: {}", response);
-    time::sleep(time::Duration::from_millis(20)).await;
+    // time::sleep(time::Duration::from_millis(20)).await;
 
     //读取主机送来的信息
     let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
