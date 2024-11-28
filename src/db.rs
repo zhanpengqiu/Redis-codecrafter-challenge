@@ -419,7 +419,7 @@ impl RedisDb {
                 }
             }
             "rdbfile"=>{
-                Value::SimpleString("Get a RedisFile from master");
+                Value::SimpleString("Get a RedisFile from master".to_string());
             }
             _ => Value::Error(format!("Unknown command: {}", command)),
         }
