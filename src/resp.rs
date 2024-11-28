@@ -73,6 +73,7 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
+        println!("slave_read_value:{:?}",self.buffer); 
         let (v, bytes_consumed) = parse_message(self.buffer.split())?;
         
         Ok(Some(v)) 
