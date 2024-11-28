@@ -87,7 +87,16 @@ impl RedisDb {
                     Value::BulkString(Some(string)) => string,
                     _ => return Value::Error("Invalid key for SET".to_string()),
                 };
-                config_lock.set(key_str,value)
+                let value_str = match value {
+                    Value::BulkString(Some(string)) => {
+                        match string.parse::<i64>() {
+                            Ok(parsed_int) => Value::Integer(parsed_int),
+                            Err(_) => Value::BulkString(Some(string)),
+                        }
+                    },
+                    _ => Value::Error("Invalid value for SET".to_string()),
+                };
+                config_lock.set(key_str,value_str)
             }
             "get" => {
                 if args.is_empty() {
@@ -247,7 +256,7 @@ impl RedisDb {
             }
             "xrange" => {
                 if args.len() < 2 {
-                    return Value::Error("Wrong number of arguments for XADD".to_string());
+                    return Value::Error("Wrong number of arguments for XRANGE".to_string());
                 }
                 // 增加key到stream当中
                 let stream_key = args.remove(0);
@@ -263,7 +272,7 @@ impl RedisDb {
             "xread" => {
                 //实现xread的逻辑
                 if args.len() < 1 {
-                    return Value::Error("Wrong number of arguments for XADD".to_string());
+                    return Value::Error("Wrong number of arguments for XREAD".to_string());
                 }
                 let cmd = args.remove(0);
                 match cmd {
@@ -368,6 +377,33 @@ impl RedisDb {
                     _ => return Value::Error("Unknown XREAD command".to_string()),
                 }
 
+            }
+            "incr" => {
+                if args.is_empty() {
+                    return Value::Error("Wrong number of arguments for GET".to_string());
+                }
+                let key = args.remove(0);
+                let key_str = match key {
+                    Value::BulkString(Some(string)) => string,
+                    _ => return Value::Error("Invalid key for GET".to_string()),
+                };
+                {
+                    let mut config_lock=config.lock().await;
+                    let value = config_lock.get(key_str.clone());
+                    match value {
+                        Value::Integer(n) => {
+                            let incr_value = Value::Integer(n + 1);
+                            config_lock.incr(key_str.clone(),incr_value.clone())
+                        }
+                        Value::BulkString(None) => {
+                            let incr_value = Value::Integer(1);
+                            config_lock.incr(key_str.clone(),incr_value.clone())
+                        }
+                        _ => Value::Error("ERR value is not an integer or out of range".to_string()),
+                    }
+                }
+
+                
             }
             "ping" => Value::SimpleString("PONG".to_string()),
             "echo" => {
