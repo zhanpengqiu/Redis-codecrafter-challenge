@@ -16,7 +16,9 @@ use tokio::time;
 pub struct Slaves {
     slave_addrs: HashMap<String,String>,
     slave_handler:Vec<RespHandler>,
-    slave_offsets:Vec<i64>,
+    slave_offsets:Vec<i32>,
+    master_index: i32, // 记录 master 已执行的命令在 command_hash 数组中的下标
+    master_offset:i32,
 
     command_hash: Vec<Value>,
     slave_command_hash_index:Vec<i64>,
@@ -30,6 +32,8 @@ impl Slaves {
             slave_offsets: Vec::new(),
 
             command_hash: Vec::new(),
+            master_index: 0,
+            master_offset: 0,
             slave_command_hash_index: Vec::new(),
         }
     }
@@ -50,32 +54,58 @@ impl Slaves {
                         getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
                         getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
 
-                        handler.write_value(Value::Array(getack_cmd_vec)).await;
-                    } else {
+                        handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
+                        //等待回复，回复设置offset
+
+                        // let response = handler.read_value().await?;
+                        let response = handler.read_value().await;
+
+                        match response {
+                            Ok(Some(Value::Array(v))) => {
+                                let offset = match v.get(2) {
+                                    Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
+                                    _ => 0,
+                                };
+    
+                                if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
+                                    *handler_offsets = offset;
+                                    println!("Handler offset: {}", *handler_offsets);
+                                }
+                                //获得有效的偏移
+                                *item+=1;
+                            }
+                            Err(e) => eprintln!("Error reading response: {}", e),
+                            _ => println!("Unexpected response format"),
+                        }
+
+                    } 
+                    else {
                         println!("Index {} is out of bounds", index);
                     }
-                    *item+=1;
                     break;
                 }
-            }else{
-                //发送ack命令
-                // for handler in self.slave_handler.iter_mut(){
-                //     let mut getack_cmd_vec = Vec::new();
-                //     getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
-                //     getack_cmd_vec.push(Value::BulkString(Some("getack".to_string())));
-                //     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
-
-                //     handler.write_value(Value::Array(getack_cmd_vec)).await;
-                // }
             }
         }
+        if self.master_index ==0{
+            for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
+                self.master_offset += command.clone().serialize().len() as i32; 
+                self.master_index+=1;
+            }
+        }else{
+            for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
+                self.master_offset += command.clone().serialize().len() as i32+37i32; 
+                self.master_index+=1;
+            }
+        }
+
+        // println!("{:?},{:?}",self.master_index,self.master_offset);
     }
 
     pub fn wait(&mut self, slave_num:i32)->Result<Value>{
         // 等待当前命令完成
         let mut slave_done = 0;
-        for (index, item) in self.slave_command_hash_index.iter_mut().enumerate() {
-            if *item == self.command_hash.len() as i64{
+        for (index, item) in self.slave_offsets.iter_mut().enumerate() {
+            if *item == self.master_offset{
                 slave_done +=1;
             }
         }
@@ -99,7 +129,7 @@ impl Slaves {
         handler.write_value(val).await.unwrap();
         
         self.slave_handler.push(handler);
-        self.slave_offsets.push(0);
+        self.slave_offsets.push(0 as i32);
 
         self.slave_command_hash_index.push(0);
     }

@@ -201,7 +201,7 @@ impl RedisDb {
                             let mut reply_vec = Vec::new();
                             reply_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
                             reply_vec.push(Value::BulkString(Some("ACK".to_string())));
-                            reply_vec.push(Value::BulkString(Some(offset.to_string()    )));
+                            reply_vec.push(Value::BulkString(Some(offset.to_string())));
 
                             Value::Array(reply_vec)
                         } else {
