@@ -70,6 +70,7 @@ impl Slaves {
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
                     
                         self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
+                        println!("{:?},{:?}",index,self.master_offset);
                     
                     //等待回复，回复设置offset
     
