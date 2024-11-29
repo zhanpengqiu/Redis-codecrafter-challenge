@@ -50,7 +50,14 @@ impl Slaves {
                         println!("{:?}",command);
                         handler.write_value(command.clone()).await;
 
-                        let mut getack_cmd_vec = Vec::new();
+                    } 
+                    else {
+                        println!("Index {} is out of bounds", index);
+                    }
+                    *item+=1;
+                    // break;
+                }
+                let mut getack_cmd_vec = Vec::new();
                         getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
                         getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
                         getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
@@ -81,14 +88,6 @@ impl Slaves {
                             Err(e) => eprintln!("Error reading response: {}", e),
                             _ => println!("Unexpected response format"),
                         }
-
-                    } 
-                    else {
-                        println!("Index {} is out of bounds", index);
-                    }
-                    *item+=1;
-                    break;
-                }
             }
         }
         if self.master_index ==0{
