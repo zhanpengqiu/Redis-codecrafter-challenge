@@ -70,9 +70,8 @@ impl Slaves {
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
                     if index ==0 {
                         self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
-                        self.master_index+=1;
                     }
-                    // //等待回复，回复设置offset
+                    //等待回复，回复设置offset
     
                     // let response = handler.read_value().await?;
                     let response = handler.read_value().await;
