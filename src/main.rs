@@ -277,16 +277,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
         Value::BulkString(Some("?".to_string())),
         Value::BulkString(Some("-1".to_string().to_string())),
     ])).await?;
-    let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
     
-    // time::sleep(time::Duration::from_millis(20)).await;
-
-    //读取主机送来的信息
-    // let response = handler.read_value().await?.ok_or_else(|| anyhow::anyhow!("Failed to read response"))?;
-    // //TODO: realize redis database storage
-    // println!("Master response: {:?},{:?}", response,handler);
-    // time::sleep(time::Duration::from_millis(20)).await;
-
     //TODO: realize command execution
     tokio::spawn(async move {
         loop {
@@ -298,20 +289,23 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
             
             if let Some(value) = values {
                 for v in value.iter() {
-                    let extracted = extract_command(v.clone()).unwrap();
-                    command = extracted.0; // 初始化变量
-                    args = extracted.1; // 初始化变量
-                    
-                    let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
-                    println!("{:?}", respon);
-
-                    //记录处理的命令
-                    {
-                        let mut redisconfig_lock=redisconfig.lock().await;
-                        redisconfig_lock.rcliinfo_track_slave_cmd_offset(v.clone().serialize().len());
+                    match v{
+                        Value::Array(_) =>{
+                            let extracted = extract_command(v.clone()).unwrap();
+                            command = extracted.0; // 初始化变量
+                            args = extracted.1; // 初始化变量
+        
+                            let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
+                            println!("{:?}", respon);
+        
+                            //记录处理的命令
+                            {
+                                let mut redisconfig_lock=redisconfig.lock().await;
+                                redisconfig_lock.rcliinfo_track_slave_cmd_offset(v.clone().serialize().len());
+                            }
+                        }
+                        _=>{}
                     }
-                    
-
                 }
 
             } else {
