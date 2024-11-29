@@ -49,7 +49,6 @@ impl Slaves {
                     if let Some(handler) = self.slave_handler.get_mut(index) {
                         println!("{:?}",command);
                         handler.write_value(command.clone()).await;
-
                     } 
                     else {
                         println!("Index {} is out of bounds", index);
@@ -57,38 +56,42 @@ impl Slaves {
                     *item+=1;
                     // break;
                 }
-                let mut getack_cmd_vec = Vec::new();
-                        getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
-                        getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
-                        getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
-
-                        handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
-                        // //等待回复，回复设置offset
-
-                        // let response = handler.read_value().await?;
-                        let response = handler.read_value().await;
-                        println!("{:?}",response);
-
-                        match response {
-                            Ok(Some(Value::Array(v))) => {
-                                let offset = match v.get(2) {
-                                    Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
-                                    _ => 0,
-                                };
+                if let Some(handler) = self.slave_handler.get_mut(index) {
+                    let mut getack_cmd_vec = Vec::new();
+                    getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
+                    getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
+                    getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
     
-                                if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
-                                    // 如果不等的话重新计算,这个item
-                                    *handler_offsets = offset.clone();
-                                    println!("Handler offset: {}", *handler_offsets);
-                                }
-                                //获得有效的偏移
-                                
-                                
+                    handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
+                    // //等待回复，回复设置offset
+    
+                    // let response = handler.read_value().await?;
+                    let response = handler.read_value().await;
+                    println!("{:?}",response);
+    
+                    match response {
+                        Ok(Some(Value::Array(v))) => {
+                            let offset = match v.get(2) {
+                                Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
+                                _ => 0,
+                            };
+    
+                            if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
+                                // 如果不等的话重新计算,这个item
+                                *handler_offsets = offset.clone();
+                                println!("Handler offset: {}", *handler_offsets);
                             }
-                            Err(e) => eprintln!("Error reading response: {}", e),
-                            _ => println!("Unexpected response format"),
+                            //获得有效的偏移
+                            
+                            
                         }
-            }
+                        Err(e) => eprintln!("Error reading response: {}", e),
+                        _ => println!("Unexpected response format"),
+                    }
+                } 
+                
+
+    }
         }
         if self.master_index ==0{
             for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
