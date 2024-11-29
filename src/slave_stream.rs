@@ -74,7 +74,7 @@ impl Slaves {
                     // if index ==0 {
                     //     self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
                     //     println!("{:?},{:?}", self.master_offset,index);
-                    // }
+                    // } 
                     //等待回复，回复设置offset
     
                     // let response = handler.read_value().await?;
