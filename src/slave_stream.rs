@@ -69,6 +69,7 @@ impl Slaves {
                     getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
                     getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
                     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
+                    time::sleep(time::Duration::from_millis(500)).await;
     
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
                     // if index ==0 {
@@ -79,7 +80,7 @@ impl Slaves {
     
                     // let response = handler.read_value().await?;
                     let response = handler.read_value().await;
-                    time::sleep(time::Duration::from_millis(500)).await;
+                    
                     println!("{:?}",response);
     
                     match response {
