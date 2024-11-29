@@ -441,6 +441,7 @@ impl RedisDb {
                     Value::BulkString(Some(ref num_str)) => num_str.clone(),
                     _ => return Value::Error("Err wait num".to_string())
                 }.parse::<i32>().unwrap();
+                println!("{}", wait_num);
 
 
                 let start_time = Instant::now();
