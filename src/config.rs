@@ -97,7 +97,7 @@ impl Config {
                     let mut slaves_read = slaves_clone.write().await;
                     slaves_read.r#loop().await;
                 }
-                time::sleep(time::Duration::from_millis(10)).await;
+                time::sleep(time::Duration::from_millis(100)).await;
             }
         });
     }
