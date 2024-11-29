@@ -277,7 +277,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
         Value::BulkString(Some("?".to_string())),
         Value::BulkString(Some("-1".to_string().to_string())),
     ])).await?;
-    
+
     //TODO: realize command execution
     tokio::spawn(async move {
         loop {
@@ -297,6 +297,11 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
         
                             let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
                             println!("{:?}", respon);
+                            match command.to_lowercase().as_str(){
+                                "replconf" => handler.write_value(respon)
+                                _ => {}
+                            }
+                            
         
                             //记录处理的命令
                             {
