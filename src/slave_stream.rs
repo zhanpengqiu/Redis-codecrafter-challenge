@@ -98,23 +98,8 @@ impl Slaves {
                         _ => println!("Unexpected response format"),
                     }
                 } 
-                
-
     }
         }
-        // if self.master_index ==0{
-        //     for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
-        //         self.master_offset += command.clone().serialize().len() as i32; 
-        //         self.master_index+=1;
-        //     }
-        // }else{
-        //     for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
-        //         self.master_offset += command.clone().serialize().len() as i32+37i32; 
-        //         self.master_index+=1;
-        //     }
-        // }
-
-        // println!("{:?},{:?}",self.master_index,self.master_offset);
     }
 
     pub fn wait(&mut self, slave_num:i32)->Result<Value>{
