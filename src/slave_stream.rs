@@ -41,6 +41,7 @@ impl Slaves {
     pub async fn r#loop(&mut self) {
         // println!("{:?},{:?},{:?}",self.command_hash,self.slave_command_hash_index,self.command_hash.len());
         for (index, item) in self.slave_command_hash_index.iter_mut().enumerate() {
+            priuntln("{:?},{:?}",index,item);
             if *item<self.command_hash.len() as i64{
                 for (command_index,command) in self.command_hash.iter().enumerate().skip(*item as usize) {
                     // self.slave_handler
