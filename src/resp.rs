@@ -86,7 +86,7 @@ impl RespHandler {
         }
 
         let mut buf = Vec::new();
-        println!("slave_read_value:{:?}",self.buffer); 
+        println!("slave_read_value:{:?}",self.buffer.split(); 
         while self.buffer.len()!=0{
             let (v, bytes_consumed) = parse_message(self.buffer.split())?;
             buf.push(v);
