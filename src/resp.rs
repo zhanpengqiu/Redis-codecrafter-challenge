@@ -2,6 +2,8 @@ use tokio::{net::TcpStream, io::{AsyncReadExt, AsyncWriteExt}};
 use std::fmt::{Write};
 use bytes::BytesMut;
 use anyhow::Result;
+use tokio::time::{self,sleep, timeout, Duration};
+use anyhow::Context;
 use std::fmt;
 // 参数用于输入到database中
 
@@ -69,13 +71,24 @@ impl RespHandler {
         }
     }
     pub async fn read_value(&mut self) -> Result<Option<Value>> {
-        let bytes_read = self.stream.read_buf(&mut self.buffer).await?;
-        if bytes_read == 0 {
+        // 设置超时时间为5秒
+        let timeout_duration = Duration::from_secs(5);
+    
+        // 使用tokio::time::timeout来添加超时控制
+        let bytes_read = time::timeout(timeout_duration, self.stream.read_buf(&mut self.buffer))
+            .await
+            .with_context(|| format!("Operation timed out after {:?}", timeout_duration))?;
+    
+        // 如果读取到的字节数为0，说明连接可能已经关闭
+        if bytes_read? == 0 {
             return Ok(None);
         }
-        let (v, bytes_consumed) = parse_message(self.buffer.split())?;
-        
-        Ok(Some(v)) 
+    
+        // 解析消息
+        let (v, bytes_consumed) = parse_message(self.buffer.split())
+            .with_context(|| "Failed to parse message")?;
+    
+        Ok(Some(v))
     }
 
     pub async fn slave_read_value(&mut self) -> Result<Option<Vec<Value>>> {

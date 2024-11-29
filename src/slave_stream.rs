@@ -46,7 +46,7 @@ impl Slaves {
                 for (command_index,command) in self.command_hash.iter().enumerate().skip(*item as usize) {
                     // self.slave_handler
                     // 写入数据
-                    println!("{:?}",command_index);
+                    println!("{:?}{:?}",command_index,item);
                     if let Some(handler) = self.slave_handler.get_mut(index) {
                         println!("{:?}",command);
                         handler.write_value(command.clone()).await;
