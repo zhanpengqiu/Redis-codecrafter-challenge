@@ -163,7 +163,7 @@ fn parse_bulk_string(buffer: BytesMut) -> Result<(Value, usize)> {
         total_parsed = end_of_bulk_str;
 
         if String::from_utf8(temp_buf.to_vec()).unwrap() == "REDIS".to_string(){
-            return Ok((Value::Array(vec![Value::BulkString(Some("RDBFILE".to_string()))]),total_parsed))
+            return Ok((Value::SimpleString("RDBFILE".to_string()),total_parsed))
         }
     }else{
         end_of_bulk_str = bytes_consumed + bulk_str_len as usize;
