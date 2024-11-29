@@ -444,7 +444,7 @@ impl RedisDb {
 
 
                 let start_time = Instant::now();
-                let interval = Duration::from_millis(50);
+                let interval = Duration::from_millis(100);
                 let total_duration = Duration::from_millis(wait_num as u64);
                 let mut res_val = Value::BulkString(None);
 
