@@ -456,7 +456,7 @@ impl RedisDb {
                         res_val = match config_lock.wait(num_of_repl_slaves.clone()).await{
                             Ok(res) => {
                                 res_val = res.clone(); // 假设 res 是你需要的值
-  continue;
+                                continue;
                             }
                             Err(e) => Value::Error(format!("{}",e)),
                         };
