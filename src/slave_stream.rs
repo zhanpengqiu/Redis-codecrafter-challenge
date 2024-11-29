@@ -79,7 +79,7 @@ impl Slaves {
     
                     // let response = handler.read_value().await?;
                     let response = handler.read_value().await;
-                    time::sleep(time::Duration::from_millis(1000)).await;
+                    time::sleep(time::Duration::from_millis(500)).await;
                     println!("{:?}",response);
     
                     match response {
