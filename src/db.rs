@@ -436,6 +436,10 @@ impl RedisDb {
                     _ => return Value::Error("Err wait num".to_string())
                 }.parse::<i32>().unwrap();
 
+                if num_of_repl_slaves==0{
+                    return Value::Integer(0);
+                }
+
                 
                 let wait_num = match args.remove(0){
                     Value::BulkString(Some(ref num_str)) => num_str.clone(),
