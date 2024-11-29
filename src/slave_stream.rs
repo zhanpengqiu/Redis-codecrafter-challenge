@@ -42,6 +42,9 @@ impl Slaves {
         // println!("{:?},{:?},{:?}",self.command_hash,self.slave_command_hash_index,self.command_hash.len());
         for (index, item) in self.slave_command_hash_index.iter_mut().enumerate() {
             if *item<self.command_hash.len() as i64{
+                if self.master_index !=0 && index ==0{
+                    self.master_offset+=37 as i32;
+                }
                 for (command_index,command) in self.command_hash.iter().enumerate().skip(*item as usize) {
                     // self.slave_handler
                     // 写入数据
@@ -68,10 +71,10 @@ impl Slaves {
                     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
     
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
-                    if index ==0 {
-                        self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
-                        println!("{:?},{:?}", self.master_offset,index);
-                    }
+                    // if index ==0 {
+                    //     self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
+                    //     println!("{:?},{:?}", self.master_offset,index);
+                    // }
                     //等待回复，回复设置offset
     
                     // let response = handler.read_value().await?;
@@ -90,8 +93,6 @@ impl Slaves {
                                 *handler_offsets = offset.clone();
                                 println!("Handler offset: {}", *handler_offsets);
                             }
-
-                            
                         }
                         Err(e) => eprintln!("Error reading response: {}", e),
                         _ => println!("Unexpected response format"),
