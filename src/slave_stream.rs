@@ -57,26 +57,27 @@ impl Slaves {
                         handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
                         // //等待回复，回复设置offset
 
-                        // // let response = handler.read_value().await?;
-                        // let response = handler.read_value().await;
+                        // let response = handler.read_value().await?;
+                        let response = handler.read_value().await;
+                        println!("{:?}",response);
 
-                        // match response {
-                        //     Ok(Some(Value::Array(v))) => {
-                        //         let offset = match v.get(2) {
-                        //             Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
-                        //             _ => 0,
-                        //         };
+                        match response {
+                            Ok(Some(Value::Array(v))) => {
+                                let offset = match v.get(2) {
+                                    Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
+                                    _ => 0,
+                                };
     
-                        //         if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
-                        //             *handler_offsets = offset;
-                        //             println!("Handler offset: {}", *handler_offsets);
-                        //         }
-                        //         //获得有效的偏移
+                                if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
+                                    *handler_offsets = offset;
+                                    println!("Handler offset: {}", *handler_offsets);
+                                }
+                                //获得有效的偏移
                                 
-                        //     }
-                        //     Err(e) => eprintln!("Error reading response: {}", e),
-                        //     _ => println!("Unexpected response format"),
-                        // }
+                            }
+                            Err(e) => eprintln!("Error reading response: {}", e),
+                            _ => println!("Unexpected response format"),
+                        }
 
                     } 
                     else {
