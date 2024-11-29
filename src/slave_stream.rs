@@ -46,10 +46,10 @@ impl Slaves {
                     // self.slave_handler
                     // 写入数据
                     println!("{:?}{:?}",command_index,item);
-                    
+                    if index ==0 {
                         self.master_offset += command.clone().serialize().len() as i32; 
                         self.master_index+=1;
-                    
+                    }
 
                     if let Some(handler) = self.slave_handler.get_mut(index) {
                         println!("{:?}",command);
@@ -68,10 +68,10 @@ impl Slaves {
                     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
     
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
-                    
+                    if index ==0 {
                         self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
-                        println!("{:?},{:?}",index,self.master_offset);
-                    
+                        println!("{:?},{:?}", self.master_offset,index);
+                    }
                     //等待回复，回复设置offset
     
                     // let response = handler.read_value().await?;
