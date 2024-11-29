@@ -72,7 +72,7 @@ impl RespHandler {
     }
     pub async fn read_value(&mut self) -> Result<Option<Value>> {
         // 设置超时时间为5秒
-        let timeout_duration = Duration::from_secs(5);
+        let timeout_duration = Duration::from_secs(1);
     
         // 使用tokio::time::timeout来添加超时控制
         let bytes_read = time::timeout(timeout_duration, self.stream.read_buf(&mut self.buffer))
