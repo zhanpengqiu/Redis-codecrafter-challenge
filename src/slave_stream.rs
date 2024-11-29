@@ -108,8 +108,8 @@ impl Slaves {
         // 等待当前命令完成
         let mut slave_done = 0;
         for (index, item) in self.slave_offsets.iter_mut().enumerate() {
+            println!("{:?},{:?}",item,self.master_offset);
             if *item == self.master_offset && self.master_offset != 0{
-                
                 slave_done +=1;
             }
         }
