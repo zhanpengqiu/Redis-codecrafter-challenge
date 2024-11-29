@@ -69,7 +69,7 @@ impl Slaves {
                     getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
                     getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
                     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
-                    time::sleep(time::Duration::from_millis(500)).await;
+                    time::sleep(time::Duration::from_millis(200)).await;
     
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
                     // if index ==0 {
