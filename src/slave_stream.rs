@@ -46,6 +46,11 @@ impl Slaves {
                     // self.slave_handler
                     // 写入数据
                     println!("{:?}{:?}",command_index,item);
+                    if index ==0 {
+                        self.master_offset += command.clone().serialize().len() as i32; 
+                        self.master_index+=1;
+                    }
+
                     if let Some(handler) = self.slave_handler.get_mut(index) {
                         println!("{:?}",command);
                         handler.write_value(command.clone()).await;
@@ -63,6 +68,10 @@ impl Slaves {
                     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
     
                     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
+                    if index ==0 {
+                        self.master_offset += Value::Array(getack_cmd_vec.clone()).clone().serialize().len() as i32; 
+                        self.master_index+=1;
+                    }
                     // //等待回复，回复设置offset
     
                     // let response = handler.read_value().await?;
@@ -81,8 +90,7 @@ impl Slaves {
                                 *handler_offsets = offset.clone();
                                 println!("Handler offset: {}", *handler_offsets);
                             }
-                            //获得有效的偏移
-                            
+
                             
                         }
                         Err(e) => eprintln!("Error reading response: {}", e),
@@ -93,17 +101,17 @@ impl Slaves {
 
     }
         }
-        if self.master_index ==0{
-            for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
-                self.master_offset += command.clone().serialize().len() as i32; 
-                self.master_index+=1;
-            }
-        }else{
-            for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
-                self.master_offset += command.clone().serialize().len() as i32+37i32; 
-                self.master_index+=1;
-            }
-        }
+        // if self.master_index ==0{
+        //     for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
+        //         self.master_offset += command.clone().serialize().len() as i32; 
+        //         self.master_index+=1;
+        //     }
+        // }else{
+        //     for (command_index,command) in self.command_hash.iter().enumerate().skip(self.master_index.clone() as usize) {
+        //         self.master_offset += command.clone().serialize().len() as i32+37i32; 
+        //         self.master_index+=1;
+        //     }
+        // }
 
         // println!("{:?},{:?}",self.master_index,self.master_offset);
     }
