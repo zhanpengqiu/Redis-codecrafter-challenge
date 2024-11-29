@@ -115,7 +115,7 @@ impl Slaves {
             }
         }
 
-        println!("{:?}", slave_done);
+        // println!("{:?}", slave_done);
         Ok(Value::Integer(slave_done as i64))
         // if self.slave_handler.len() as i32>=slave_num{
         //     Ok(Value::Integer(self.slave_handler.len() as i64))
