@@ -191,6 +191,12 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                 break;
             }
         }
+        {
+            let mut redisconfig_lock=redisconfig.lock().await;
+            if let Some(v) = value.clone(){
+                redisconfig_lock.rcliinfo_track_cmd(v).await;
+            }
+        }
         println!("{:?}",response);
         handler.write_value(response).await.unwrap();
         // 记录处理的命令
