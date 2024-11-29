@@ -64,6 +64,14 @@ impl Slaves {
         }
     }
 
+    pub fn wait(&self, slave_num:i32)->Result<Value>{
+        Ok(Value::Integer(self.slave_handler.len() as i64))
+        // if self.slave_handler.len() as i32>=slave_num{
+        //     Ok(Value::Integer(self.slave_handler.len() as i64))
+        // }else{
+        //     Err(anyhow::anyhow!("Not enough slave"))
+        // }
+    }
     pub async fn shake_hand_addr_info(&mut self, in_addr: String,listen_addr: String) {
         println!("New ShakeHand connection came");
         self.slave_addrs.insert(in_addr,listen_addr);

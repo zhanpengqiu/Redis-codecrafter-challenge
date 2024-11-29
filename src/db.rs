@@ -427,7 +427,44 @@ impl RedisDb {
                 
             }
             "wait" => {
-                Value::Integer(0)
+                if args.len()!= 2 {
+                    return Value::Error("Wrong number of arguments for WAIT".to_string());
+                }
+
+                let num_of_repl_slaves = match args.remove(0){
+                    Value::BulkString(Some(ref num_str)) => num_str.clone(),
+                    _ => return Value::Error("Err wait num".to_string())
+                }.parse::<i32>().unwrap();
+
+                
+                let wait_num = match args.remove(0){
+                    Value::BulkString(Some(ref num_str)) => num_str.clone(),
+                    _ => return Value::Error("Err wait num".to_string())
+                }.parse::<i32>().unwrap();
+
+
+                let start_time = Instant::now();
+                let interval = Duration::from_millis(20);
+                let total_duration = Duration::from_millis(wait_num as u64);
+                let mut res_val = Value::BulkString(None);
+
+                while start_time.elapsed() < total_duration {
+                    //检查是否有新的项目进来并且项目是匹配的,没有的话继续执行,有的话打破循环
+                    {                     
+                        let mut config_lock=config.lock().await;
+                        res_val = match config_lock.wait(num_of_repl_slaves).await{
+                            Ok(res) => {
+                                res_val = res.clone(); // 假设 res 是你需要的值
+                                break; // 跳出循环
+                            }
+                            Err(e) => Value::Error(format!("{}",e)),
+                        };
+                    }
+                    // 异步睡眠20ms
+                    sleep(interval).await;
+                }
+
+                res_val
             }
             "ping" => Value::SimpleString("PONG".to_string()),
             "echo" => {
