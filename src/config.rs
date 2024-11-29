@@ -29,6 +29,7 @@ pub struct Config{
     slaves_handler:Arc<RwLock<Slaves>>,
     stream:Stream,
     key_type:HashMap<Value,String>,
+    my_offset:usize,
 }
 impl Config {
     pub fn new() -> Self {
@@ -41,6 +42,7 @@ impl Config {
             slaves_handler: Arc::new(RwLock::new(Slaves::new())),//需要异步处理
             stream: Stream::new(),
             key_type: HashMap::new(),
+            my_offset: 0,
         }
     }
     pub fn get_type(&mut self,key:Value)-> String{
@@ -98,6 +100,12 @@ impl Config {
                 time::sleep(time::Duration::from_millis(30)).await;
             }
         });
+    }
+    pub fn rcliinfo_track_slave_cmd_offset(&mut self, slave_cmd_offset:usize){
+        self.my_offset = self.my_offset + slave_cmd_offset;
+    }
+    pub fn rcliinfo_get_slave_cmd_offset(&self)-> usize{
+        self.my_offset
     }
     pub async fn rcliinfo_track_cmd(&mut self, cmd:Value){
         let mut slaves_write = self.slaves_handler.write().await;

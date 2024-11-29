@@ -192,6 +192,22 @@ impl RedisDb {
                             Value::Error("Wrong number of arguments for listening-port".to_string())
                         }
                     },
+                    Value::BulkString(Some(ref cmd)) if cmd.eq_ignore_ascii_case("getack") => {
+                        if args.len() == 1 {
+                            let _arg1 = args.remove(0);
+                            let config_lock=config.lock().await;
+                            let offset = config_lock.rcliinfo_get_slave_cmd_offset();
+
+                            let mut reply_vec = Vec::new();
+                            reply_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
+                            reply_vec.push(Value::BulkString(Some("ACK".to_string())));
+                            reply_vec.push(Value::BulkString(Some(offset.to_string()    )));
+
+                            Value::Array(reply_vec)
+                        } else {
+                            Value::Error("Wrong number of arguments for GETACK".to_string())
+                        }
+                    },
                     _ => Value::Error("Unknown REPLCONF command".to_string()),
                 }
             }

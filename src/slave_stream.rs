@@ -52,17 +52,13 @@ impl Slaves {
                 }
             }else{
                 //发送ack命令
-                for (command_index,command) in self.command_hash.iter().enumerate().skip(*item as usize) {
-                    // self.slave_handler
-                    // 写入数据
-                    if let Some(handler) = self.slave_handler.get_mut(index) {
-                        println!("{:?}",command);
-                        handler.write_value(command.clone()).await;
-                    } else {
-                        println!("Index {} is out of bounds", index);
-                    }
-                    *item+=1;
-                    break;
+                for handler in self.slave_handler.iter_mut(){
+                    let mut getack_cmd_vec = Vec::new();
+                    getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
+                    getack_cmd_vec.push(Value::BulkString(Some("getack".to_string())));
+                    getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
+
+                    handler.write_value(Value::Array(getack_cmd_vec)).await;
                 }
             }
         }

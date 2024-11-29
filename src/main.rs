@@ -304,28 +304,19 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
                     
                     let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
                     println!("{:?}", respon);
+
+                    //记录处理的命令
+                    {
+                        let mut redisconfig_lock=redisconfig.lock().await;
+                        redisconfig_lock.rcliinfo_track_slave_cmd_offset(v.clone().serialize().len());
+                    }
+                    
+
                 }
 
             } else {
                 break;
             };
-            // let value = handler.read_value().await.unwrap();
-            // println!("Got value {:?}", value);
-    
-            // // 提前声明变量
-            // let (command, args): (String, Vec<Value>);
-            
-            // let response = if let Some(v) = value {
-            //     let extracted = extract_command(v).unwrap();
-            //     command = extracted.0; // 初始化变量
-            //     args = extracted.1; // 初始化变量
-                
-            //     let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
-            //     println!("{:?}", respon);
-            //     respon
-            // } else {
-            //     break;
-            // };
         };
         // TODO：Track command offset 
     });
