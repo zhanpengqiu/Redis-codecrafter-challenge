@@ -108,8 +108,8 @@ impl Config {
         self.my_offset
     }
     pub async fn wait(&mut self, wait_slave_num:i32 )->Result<Value>{
-        let mut slaves_read = self.slaves_handler.read().await;
-        slaves_read.wait(wait_slave_num)
+        let mut slaves_write = self.slaves_handler.write().await;
+        slaves_write.wait(wait_slave_num)
     }
     pub async fn rcliinfo_track_cmd(&mut self, cmd:Value){
         let mut slaves_write = self.slaves_handler.write().await;

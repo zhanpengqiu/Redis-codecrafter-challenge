@@ -452,10 +452,19 @@ impl RedisDb {
                     //检查是否有新的项目进来并且项目是匹配的,没有的话继续执行,有的话打破循环
                     {                     
                         let mut config_lock=config.lock().await;
-                        res_val = match config_lock.wait(num_of_repl_slaves).await{
+                        res_val = match config_lock.wait(num_of_repl_slaves.clone()).await{
                             Ok(res) => {
                                 res_val = res.clone(); // 假设 res 是你需要的值
-                                break; // 跳出循环
+                                match res_val.clone(){
+                                    Value::Integer(v) => {
+                                        if v <= num_of_repl_slaves.clone() as i64{
+                                            continue;
+                                        }else{
+                                            break;
+                                        }
+                                    }
+                                    _=>{continue;}
+                                }
                             }
                             Err(e) => Value::Error(format!("{}",e)),
                         };

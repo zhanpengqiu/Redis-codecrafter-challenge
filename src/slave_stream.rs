@@ -64,7 +64,15 @@ impl Slaves {
         }
     }
 
-    pub fn wait(&self, slave_num:i32)->Result<Value>{
+    pub fn wait(&mut self, slave_num:i32)->Result<Value>{
+        // 等待当前命令完成
+        let mut slave_done = 0;
+        for (index, item) in self.slave_command_hash_index.iter_mut().enumerate() {
+            if *item == self.command_hash.len() as i64{
+                slave_done +=1;
+            }
+        }
+
         Ok(Value::Integer(self.slave_handler.len() as i64))
         // if self.slave_handler.len() as i32>=slave_num{
         //     Ok(Value::Integer(self.slave_handler.len() as i64))
