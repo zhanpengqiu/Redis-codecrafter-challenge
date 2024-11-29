@@ -81,7 +81,7 @@ impl Slaves {
                     // let response = handler.read_value().await?;
                     let response = handler.read_value().await;
                     
-                    println!("{:?}",response);
+                    println!("{:?}",response); 
     
                     match response {
                         Ok(Some(Value::Array(v))) => {
