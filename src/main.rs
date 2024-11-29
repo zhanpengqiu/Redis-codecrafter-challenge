@@ -298,7 +298,9 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
                             let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),master_addr.clone()).await;
                             println!("{:?}", respon);
                             match command.to_lowercase().as_str(){
-                                "replconf" => handler.write_value(respon)
+                                "replconf" => {
+                                    handler.write_value(respon).await;
+                                }
                                 _ => {}
                             }
                             
