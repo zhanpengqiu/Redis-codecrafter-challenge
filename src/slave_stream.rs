@@ -72,7 +72,7 @@ impl Slaves {
                                     println!("Handler offset: {}", *handler_offsets);
                                 }
                                 //获得有效的偏移
-                                *item+=1;
+                                
                             }
                             _ => println!("Unexpected response format"),
                         }
@@ -81,6 +81,7 @@ impl Slaves {
                     else {
                         println!("Index {} is out of bounds", index);
                     }
+                    *item+=1;
                     break;
                 }
             }
