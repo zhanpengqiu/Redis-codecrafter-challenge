@@ -41,7 +41,6 @@ impl Slaves {
     pub async fn r#loop(&mut self) {
         // println!("{:?},{:?},{:?}",self.command_hash,self.slave_command_hash_index,self.command_hash.len());
         for (index, item) in self.slave_command_hash_index.iter_mut().enumerate() {
-            println!("{:?},{:?},{:?}",index,item,self.command_hash.len());
             if *item<self.command_hash.len() as i64{
                 for (command_index,command) in self.command_hash.iter().enumerate().skip(*item as usize) {
                     // self.slave_handler
@@ -75,7 +74,7 @@ impl Slaves {
                                     println!("Handler offset: {}", *handler_offsets);
                                 }
                                 //获得有效的偏移
-                                *item+=1;
+                                
                             }
                             Err(e) => eprintln!("Error reading response: {}", e),
                             _ => println!("Unexpected response format"),
@@ -85,7 +84,7 @@ impl Slaves {
                     else {
                         println!("Index {} is out of bounds", index);
                     }
-                    
+                    *item+=1;
                     break;
                 }
             }
