@@ -70,10 +70,12 @@ impl Slaves {
                                 };
     
                                 if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
-                                    *handler_offsets = offset;
+                                    // 如果不等的话重新计算,这个item
+                                    *handler_offsets = offset.clone();
                                     println!("Handler offset: {}", *handler_offsets);
                                 }
                                 //获得有效的偏移
+                                
                                 
                             }
                             Err(e) => eprintln!("Error reading response: {}", e),
@@ -108,19 +110,12 @@ impl Slaves {
         // 等待当前命令完成
         let mut slave_done = 0;
         for (index, item) in self.slave_offsets.iter_mut().enumerate() {
-            println!("{:?},{:?}",item,self.master_offset);
             if *item == self.master_offset && self.master_offset != 0{
                 slave_done +=1;
             }
         }
 
-        // println!("{:?}", slave_done);
         Ok(Value::Integer(slave_done as i64))
-        // if self.slave_handler.len() as i32>=slave_num{
-        //     Ok(Value::Integer(self.slave_handler.len() as i64))
-        // }else{
-        //     Err(anyhow::anyhow!("Not enough slave"))
-        // }
     }
     pub async fn shake_hand_addr_info(&mut self, in_addr: String,listen_addr: String) {
         println!("New ShakeHand connection came");
