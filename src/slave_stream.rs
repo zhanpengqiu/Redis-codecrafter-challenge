@@ -49,12 +49,12 @@ impl Slaves {
                         println!("{:?}",command);
                         handler.write_value(command.clone()).await;
 
-                        // let mut getack_cmd_vec = Vec::new();
-                        // getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
-                        // getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
-                        // getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
+                        let mut getack_cmd_vec = Vec::new();
+                        getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
+                        getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
+                        getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
 
-                        // handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
+                        handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
                         // //等待回复，回复设置offset
 
                         // // let response = handler.read_value().await?;
