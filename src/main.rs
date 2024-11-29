@@ -179,6 +179,9 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                         response = Value::SimpleString("QUEUED".to_string());
                     }else{
                         let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
+                        if let Some(v) = value.clone(){
+                            redisconfig_lock.rcliinfo_track_cmd(v).await;
+                        }
                         response=respon
                     }
                 }
@@ -191,12 +194,10 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                 break;
             }
         }
-        {
-            let mut redisconfig_lock=redisconfig.lock().await;
-            if let Some(v) = value.clone(){
-                redisconfig_lock.rcliinfo_track_cmd(v).await;
-            }
-        }
+        // {
+        //     let mut redisconfig_lock=redisconfig.lock().await;
+
+        // }
         println!("{:?}",response);
         handler.write_value(response).await.unwrap();
         // 记录处理的命令
