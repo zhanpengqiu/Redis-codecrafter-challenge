@@ -113,6 +113,9 @@ impl Slaves {
             if *item == self.master_offset && self.master_offset != 0{
                 slave_done +=1;
             }
+            if (*item == self.master_offset && self.master_offset != 0)||(*item==0,self.master_offset==0){
+                slave_done +=1;
+            }
         }
 
         Ok(Value::Integer(slave_done as i64))
