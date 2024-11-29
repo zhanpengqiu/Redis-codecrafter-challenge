@@ -90,7 +90,7 @@ impl Slaves {
                                 _ => 0,
                             };
     
-                            if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
+                            if let Some(handler_offsets) = self.slave_offsets.get_mut(index) { 
                                 // 如果不等的话重新计算,这个item
                                 *handler_offsets = offset.clone();
                                 println!("Handler offset: {}", *handler_offsets);
