@@ -89,9 +89,9 @@ impl RespHandler {
         println!("slave_read_value:{:?}",self.buffer); 
         while self.buffer.len()!=0{
             let (v, bytes_consumed) = parse_message(self.buffer.split())?;
-            println!("{:?}",v);
             buf.push(v);
         }
+        println!("{:?}",buf);
         
         Ok(Some(buf)) 
     }
