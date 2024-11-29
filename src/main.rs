@@ -268,7 +268,7 @@ async fn perform_replication_handshake(replicaof: &str,mut db:DataStore,rediscon
     // Stage3: sent PSYNC cmd to master
     // 1.The first argument is the replication ID of the master
     //      Since this is the first time the replica is connecting to the master, the replication ID will be (a question mark)?
-    // 2.The second argument is the offset of the master
+    // 2.The second argument is the offset of the master 
     //      Since this is the first time the replica is connecting to the master, the offset will be -1
 
     // TODO: code needs to be refactored
