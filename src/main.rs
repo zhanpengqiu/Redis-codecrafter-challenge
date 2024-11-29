@@ -139,7 +139,7 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
         let mut response = Value::BulkString(None);
 
         if let Some(v) = value.clone() {
-            let extracted = extract_command(v.clone()).unwrap();
+            let extracted = extract_command(v).unwrap();
             command = extracted.0; // 初始化变量
             args = extracted.1; // 初始化变量
 
@@ -179,9 +179,6 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                         response = Value::SimpleString("QUEUED".to_string());
                     }else{
                         let respon = db.handle_command(command.clone(), args.clone(), redisconfig.clone(),addr).await;
-                        if let Some(v) = value.clone(){
-                            redisconfig_lock.rcliinfo_track_cmd(v).await;
-                        }
                         response=respon
                     }
                 }
@@ -194,20 +191,16 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
                 break;
             }
         }
-        // {
-        //     let mut redisconfig_lock=redisconfig.lock().await;
-
-        // }
-        println!("{:?}",response);
-        handler.write_value(response).await.unwrap();
         // 记录处理的命令
+
         {
             let mut redisconfig_lock=redisconfig.lock().await;
             if let Some(v) = value.clone(){
                 redisconfig_lock.rcliinfo_track_cmd(v).await;
             }
         }
-
+        println!("{:?}",response);
+        handler.write_value(response).await.unwrap();
         //处理同步信息
         match command.to_lowercase().as_str() {
             "psync" => {
