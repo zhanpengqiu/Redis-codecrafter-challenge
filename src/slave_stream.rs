@@ -49,39 +49,39 @@ impl Slaves {
                         println!("{:?}",command);
                         handler.write_value(command.clone()).await;
 
-                    //     let mut getack_cmd_vec = Vec::new();
-                    //     getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
-                    //     getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
-                    //     getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
+                        // let mut getack_cmd_vec = Vec::new();
+                        // getack_cmd_vec.push(Value::BulkString(Some("REPLCONF".to_string())));
+                        // getack_cmd_vec.push(Value::BulkString(Some("GETACK".to_string())));
+                        // getack_cmd_vec.push(Value::BulkString(Some("*".to_string())));
 
-                    //     handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
-                    //     //等待回复，回复设置offset
+                        // handler.write_value(Value::Array(getack_cmd_vec.clone())).await;
+                        // //等待回复，回复设置offset
 
-                    //     // let response = handler.read_value().await?;
-                    //     let response = handler.read_value().await;
+                        // // let response = handler.read_value().await?;
+                        // let response = handler.read_value().await;
 
-                    //     match response {
-                    //         Ok(Some(Value::Array(v))) => {
-                    //             let offset = match v.get(2) {
-                    //                 Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
-                    //                 _ => 0,
-                    //             };
+                        // match response {
+                        //     Ok(Some(Value::Array(v))) => {
+                        //         let offset = match v.get(2) {
+                        //             Some(Value::BulkString(Some(s))) => s.parse::<i32>().unwrap_or(0),
+                        //             _ => 0,
+                        //         };
     
-                    //             if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
-                    //                 *handler_offsets = offset;
-                    //                 println!("Handler offset: {}", *handler_offsets);
-                    //             }
-                    //             //获得有效的偏移
+                        //         if let Some(handler_offsets) = self.slave_offsets.get_mut(index) {
+                        //             *handler_offsets = offset;
+                        //             println!("Handler offset: {}", *handler_offsets);
+                        //         }
+                        //         //获得有效的偏移
                                 
-                    //         }
-                    //         Err(e) => eprintln!("Error reading response: {}", e),
-                    //         _ => println!("Unexpected response format"),
-                    //     }
+                        //     }
+                        //     Err(e) => eprintln!("Error reading response: {}", e),
+                        //     _ => println!("Unexpected response format"),
+                        // }
 
-                    // } 
-                    // else {
-                    //     println!("Index {} is out of bounds", index);
-                    // }
+                    } 
+                    else {
+                        println!("Index {} is out of bounds", index);
+                    }
                     *item+=1;
                     break;
                 }
