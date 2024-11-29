@@ -139,7 +139,7 @@ async fn handle_conn(stream: TcpStream, mut db: DataStore, redisconfig: RedisCon
         let mut response = Value::BulkString(None);
 
         if let Some(v) = value.clone() {
-            let extracted = extract_command(v).unwrap();
+            let extracted = extract_command(v.clone()).unwrap();
             command = extracted.0; // 初始化变量
             args = extracted.1; // 初始化变量
 
