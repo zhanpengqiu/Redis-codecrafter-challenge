@@ -73,7 +73,6 @@ impl RespHandler {
         if bytes_read == 0 {
             return Ok(None);
         }
-        println!("slave_read_value:{:?}",self.buffer); 
         let (v, bytes_consumed) = parse_message(self.buffer.split())?;
         
         Ok(Some(v)) 
@@ -88,8 +87,9 @@ impl RespHandler {
         let mut buf = Vec::new();
         println!("slave_read_value:{:?}",self.buffer); 
         while self.buffer.len()!=0{
-            let (v, bytes_consumed) = parse_message(self.buffer)?;
+            let (v, bytes_consumed) = parse_message(self.buffer.clone())?;
             self.buffer=self.buffer.split_off(bytes_consumed);
+            println!("slave_read_value123:{:?},{}",self.buffer,bytes_consumed); 
             buf.push(v);
         }
         println!("{:?}",buf);
@@ -153,16 +153,24 @@ fn parse_bulk_string(buffer: BytesMut) -> Result<(Value, usize)> {
         return Err(anyhow::anyhow!("Invalid array format {:?}", buffer));
     };
     
+    let mut end_of_bulk_str = 0 as usize;
+    let mut total_parsed = 0 as usize;
+
     if bulk_str_len >50 {
         let temp_buf = &buffer[bytes_consumed..bytes_consumed+5];
+
+        end_of_bulk_str = bytes_consumed + bulk_str_len as usize;
+        total_parsed = end_of_bulk_str;
+
         if String::from_utf8(temp_buf.to_vec()).unwrap() == "REDIS".to_string(){
-            println!("rdbfile");
-            return Ok((Value::Array(vec![Value::BulkString(Some("RDBFILE".to_string()))]),1))
+            return Ok((Value::Array(vec![Value::BulkString(Some("RDBFILE".to_string()))]),total_parsed))
         }
+    }else{
+        end_of_bulk_str = bytes_consumed + bulk_str_len as usize;
+        total_parsed = end_of_bulk_str + 2;
     }
 
-    let end_of_bulk_str = bytes_consumed + bulk_str_len as usize;
-    let total_parsed = end_of_bulk_str + 2;
+
     Ok((Value::BulkString(Some(String::from_utf8(buffer[bytes_consumed..end_of_bulk_str].to_vec())?)), total_parsed))
 }
 fn read_until_crlf(buffer: &[u8]) -> Option<(&[u8], usize)> {
