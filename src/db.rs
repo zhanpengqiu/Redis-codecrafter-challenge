@@ -426,6 +426,9 @@ impl RedisDb {
 
                 
             }
+            "wait" => {
+                Value::Integer(0)
+            }
             "ping" => Value::SimpleString("PONG".to_string()),
             "echo" => {
                 if args.len() == 1 {
